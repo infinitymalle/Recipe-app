@@ -4,7 +4,8 @@ An offline-first Android app for saving recipes from any source: text, photos, l
 YouTube, TikTok and Instagram links, saved as link + title + thumbnail, never the video) and PDFs.
 The main entry point is the Android share sheet.
 
-Status: **phase 1 (project skeleton)**. See "Roadmap".
+Status: **phase 2 (data layer) done**: database, repositories and tests exist, screens come next.
+See "Roadmap".
 
 ## Stack
 
@@ -17,7 +18,7 @@ Coil, Navigation Compose. Gradle Kotlin DSL with a version catalog (`gradle/libs
 app/src/main/java/dev/malkolm/recipeapp/
   ui/       Composables + ViewModels. State flows down as UiState, events flow up as function calls.
   domain/   Pure Kotlin models and repository interfaces (no Android imports).
-  data/     Room database, repository implementations, file storage.
+  data/     Room database (local/), repository implementations (repository/), file storage.
   di/       Hilt modules.
 ```
 
@@ -47,7 +48,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 ## Roadmap
 
 1. Project skeleton (Hilt, version catalog, ktlint, CI, Git) - done
-2. Room entities, DAOs, repository, migrations, tests
+2. Room entities, DAOs, repository, migrations, tests - done (see `docs/database.md`)
 3. Recipe list, detail and add/edit screens (text and link)
 4. Photo picker and camera, image storage
 5. Share-sheet intent filter
