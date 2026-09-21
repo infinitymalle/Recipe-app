@@ -1,0 +1,41 @@
+﻿name: CI
+
+on:
+  push:
+  pull_request:
+
+# A newer push to the same branch cancels the older run that is still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Matches the JDK the Gradle daemon is pinned to in gradle/gradle-daemon-jvm.properties.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Code style, Android Lint, unit tests, debug build
+        run: ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug --stacktrace
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: ignore
