@@ -47,6 +47,15 @@ android {
     lint {
         // Any lint warning fails the build, so problems are fixed when they appear instead of piling up.
         warningsAsErrors = true
+        // "A newer version is available" reminders are not bugs. Left on, they would turn CI red
+        // the day a new Gradle/AGP/library release appears, with no code change. Keeping
+        // dependencies current is a separate, deliberate job.
+        disable +=
+            setOf(
+                "AndroidGradlePluginVersion",
+                "GradleDependency",
+                "NewerVersionAvailable"
+            )
     }
     testOptions {
         unitTests {
