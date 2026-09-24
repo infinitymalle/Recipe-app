@@ -67,19 +67,29 @@ fun RecipeEditScreen(onSaved: () -> Unit, onCancel: () -> Unit, viewModel: Recip
     val saved = (uiState as? RecipeEditUiState.Editing)?.saved == true
     val snackbarHostState = remember { SnackbarHostState() }
     val ingredientAddedMessage = stringResource(R.string.recipe_edit_ingredient_added)
+    val pictureErrorMessage = stringResource(R.string.recipe_edit_picture_error)
+    var isErrorSnackbar by remember { mutableStateOf(false) }
 
     LaunchedEffect(saved) {
         if (saved) onSaved()
     }
     LaunchedEffect(viewModel) {
         viewModel.ingredientAdded.collect {
+            isErrorSnackbar = false
             snackbarHostState.showSnackbar(ingredientAddedMessage, duration = SnackbarDuration.Short)
+        }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.pictureError.collect {
+            isErrorSnackbar = true
+            snackbarHostState.showSnackbar(pictureErrorMessage, duration = SnackbarDuration.Short)
         }
     }
 
     RecipeEditContent(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
+        isErrorSnackbar = isErrorSnackbar,
         onCancel = onCancel,
         onTitleChange = viewModel::updateTitle,
         onAddIngredient = viewModel::addIngredient,
@@ -129,17 +139,26 @@ fun RecipeEditContent(
     onRemoveAttachment: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    isErrorSnackbar: Boolean = false
 ) {
     Scaffold(
         modifier = modifier,
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = Color(0xFF2E7D32),
-                    contentColor = Color.White
-                )
+                if (isErrorSnackbar) {
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                } else {
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = Color(0xFF2E7D32),
+                        contentColor = Color.White
+                    )
+                }
             }
         },
         topBar = {

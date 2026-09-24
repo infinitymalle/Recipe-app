@@ -54,6 +54,7 @@
 
     <string name="recipe_edit_add_ingredient">+ Add ingredient</string>
     <string name="recipe_edit_ingredient_added">Ingredient added</string>
+    <string name="recipe_edit_picture_error">Couldn\'t add that picture</string>
     <string name="recipe_edit_ingredient_name">Ingredient name</string>
     <string name="recipe_edit_ingredient_amount">Amount (optional)</string>
 

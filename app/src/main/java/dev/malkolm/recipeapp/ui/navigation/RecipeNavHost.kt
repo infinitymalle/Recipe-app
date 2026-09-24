@@ -10,9 +10,9 @@ import dev.malkolm.recipeapp.ui.recipelist.RecipeListScreen
 import dev.malkolm.recipeapp.ui.settings.SettingsScreen
 
 @Composable
-fun RecipeNavHost() {
+fun RecipeNavHost(startDestination: Any = RecipeListRoute) {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = RecipeListRoute) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable<RecipeListRoute> {
             RecipeListScreen(
                 onOpenRecipe = { id -> navController.navigate(RecipeDetailRoute(id)) },
@@ -30,10 +30,14 @@ fun RecipeNavHost() {
             )
         }
         composable<RecipeEditRoute> {
-            RecipeEditScreen(
-                onSaved = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() }
-            )
+            // A share (RecipeEditRoute as the start destination) has no list entry underneath to
+            // pop back to, so fall back to opening the list fresh.
+            val leaveEditScreen = {
+                if (!navController.popBackStack()) {
+                    navController.navigate(RecipeListRoute) { popUpTo(RecipeListRoute) { inclusive = true } }
+                }
+            }
+            RecipeEditScreen(onSaved = leaveEditScreen, onCancel = leaveEditScreen)
         }
     }
 }

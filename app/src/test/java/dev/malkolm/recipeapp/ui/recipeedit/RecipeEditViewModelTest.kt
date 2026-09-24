@@ -1,5 +1,6 @@
 package dev.malkolm.recipeapp.ui.recipeedit
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -30,6 +31,9 @@ class RecipeEditViewModelTest {
     private fun newRecipeHandle() = SavedStateHandle(mapOf("recipeId" to null))
 
     private fun editHandle(recipeId: String) = SavedStateHandle(mapOf("recipeId" to recipeId))
+
+    private fun sharedTextHandle(text: String) =
+        SavedStateHandle(mapOf("recipeId" to null, "sharedText" to text, "sharedImageUri" to null))
 
     private fun viewModel(
         handle: SavedStateHandle,
@@ -203,5 +207,35 @@ class RecipeEditViewModelTest {
         val state = vm.uiState.first() as RecipeEditUiState.Editing
         assertEquals("recipes/1/photo.jpg", (state.addedAttachments.first() as Attachment.Image).filePath)
         assertEquals(2, state.addedAttachments.size)
+    }
+
+    @Test
+    fun `a picture that cannot be read reports an error instead of crashing`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addPictureAttachment(Uri.parse("content://dev.malkolm.recipeapp.test/nonexistent"))
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        assertTrue(state.addedAttachments.isEmpty())
+    }
+
+    @Test
+    fun `a shared link becomes a link attachment`() = runTest {
+        val vm = viewModel(sharedTextHandle("https://example.com/pancakes"))
+
+        val state = vm.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
+        val attachment = state.addedAttachments.single() as Attachment.Link
+        assertEquals("https://example.com/pancakes", attachment.url)
+        assertTrue(state.isNew)
+    }
+
+    @Test
+    fun `shared plain text becomes a text attachment`() = runTest {
+        val vm = viewModel(sharedTextHandle("Grandma's pancake recipe, from memory"))
+
+        val state = vm.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
+        val attachment = state.addedAttachments.single() as Attachment.Text
+        assertEquals("Grandma's pancake recipe, from memory", attachment.text)
     }
 }
