@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.Flow
 abstract class RecipeDao {
     // Thumbnail = first attachment (by position) that has a picture: an IMAGE's own file, or the
     // saved thumbnail of a LINK/PDF. It is computed here so the list does not load whole recipes.
+    // searchQuery filters by title substring (empty = no filter); tagId filters to recipes that
+    // carry that tag (null = no filter).
     @Query(
         """
         SELECT r.id AS id, r.title AS title, r.servings AS servings,
@@ -36,14 +38,22 @@ abstract class RecipeDao {
                  LIMIT 1) AS thumbnailPath
           FROM recipes r
          WHERE r.deletedAt IS NULL
+           AND (:searchQuery = '' OR r.title LIKE '%' || :searchQuery || '%')
+           AND (:tagId IS NULL OR EXISTS (
+                 SELECT 1 FROM recipe_tags rt WHERE rt.recipeId = r.id AND rt.tagId = :tagId
+               ))
          ORDER BY r.updatedAt DESC
         """
     )
-    abstract fun observeSummaries(): Flow<List<RecipeSummaryRow>>
+    abstract fun observeSummaries(searchQuery: String = "", tagId: String? = null): Flow<List<RecipeSummaryRow>>
 
     @Transaction
     @Query("SELECT * FROM recipes WHERE id = :id AND deletedAt IS NULL")
     abstract fun observeDetails(id: String): Flow<RecipeWithDetails?>
+
+    @Transaction
+    @Query("SELECT * FROM recipes WHERE deletedAt IS NULL")
+    abstract suspend fun getAllDetails(): List<RecipeWithDetails>
 
     @Query("SELECT createdAt FROM recipes WHERE id = :id")
     protected abstract suspend fun getCreatedAt(id: String): Long?

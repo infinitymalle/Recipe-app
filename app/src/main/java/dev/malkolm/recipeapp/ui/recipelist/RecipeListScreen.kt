@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.RecipeSummary
+import dev.malkolm.recipeapp.domain.model.Tag
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.io.File
 import java.time.Instant
@@ -53,7 +57,9 @@ fun RecipeListScreen(
         uiState = uiState,
         onOpenRecipe = onOpenRecipe,
         onAddRecipe = onAddRecipe,
-        onOpenSettings = onOpenSettings
+        onOpenSettings = onOpenSettings,
+        onSearchQueryChange = viewModel::updateSearchQuery,
+        onSelectTag = viewModel::selectTag
     )
 }
 
@@ -65,6 +71,8 @@ fun RecipeListContent(
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectTag: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -88,23 +96,51 @@ fun RecipeListContent(
         when (uiState) {
             RecipeListUiState.Loading -> Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
 
-            RecipeListUiState.Empty -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.recipe_list_empty))
-                }
-            }
-
             is RecipeListUiState.Content -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(innerPadding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uiState.recipes, key = { it.id }) { recipe ->
-                        RecipeSummaryCard(recipe = recipe, onClick = { onOpenRecipe(recipe.id) })
+                Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        label = { Text(stringResource(R.string.recipe_list_search_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                    )
+                    if (uiState.availableTags.isNotEmpty()) {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.availableTags, key = { it.id }) { tag ->
+                                FilterChip(
+                                    selected = tag.id == uiState.selectedTagId,
+                                    onClick = { onSelectTag(tag.id) },
+                                    label = { Text(tag.name) }
+                                )
+                            }
+                        }
+                    }
+                    if (uiState.recipes.isEmpty()) {
+                        val isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedTagId != null
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (isFiltered) R.string.recipe_list_no_matches else R.string.recipe_list_empty
+                                )
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.recipes, key = { it.id }) { recipe ->
+                                RecipeSummaryCard(recipe = recipe, onClick = { onOpenRecipe(recipe.id) })
+                            }
+                        }
                     }
                 }
             }
@@ -150,10 +186,18 @@ private fun recipeDetailsLine(recipe: RecipeSummary): String? {
 private fun RecipeListContentEmptyPreview() {
     RecipeAppTheme {
         RecipeListContent(
-            uiState = RecipeListUiState.Empty,
+            uiState =
+                RecipeListUiState.Content(
+                    recipes = emptyList(),
+                    availableTags = emptyList(),
+                    selectedTagId = null,
+                    searchQuery = ""
+                ),
             onOpenRecipe = {},
             onAddRecipe = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onSearchQueryChange = {},
+            onSelectTag = {}
         )
     }
 }
@@ -176,11 +220,16 @@ private fun RecipeListContentPreview() {
                                 thumbnailPath = null,
                                 updatedAt = Instant.now()
                             )
-                        )
+                        ),
+                    availableTags = listOf(Tag.of("t1", "Baking"), Tag.of("t2", "Breakfast")),
+                    selectedTagId = "t1",
+                    searchQuery = ""
                 ),
             onOpenRecipe = {},
             onAddRecipe = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onSearchQueryChange = {},
+            onSelectTag = {}
         )
     }
 }

@@ -16,15 +16,20 @@ class FakeRecipeRepository(private val clock: Clock = Clock.systemUTC()) : Recip
     private val recipes = MutableStateFlow<Map<String, Recipe>>(emptyMap())
     private val deletedIds = MutableStateFlow<Set<String>>(emptySet())
 
-    override fun observeRecipeSummaries(): Flow<List<RecipeSummary>> = combine(recipes, deletedIds) { all, deleted ->
-        all.values
-            .filterNot { it.id in deleted }
-            .sortedByDescending { it.updatedAt }
-            .map { it.toSummary() }
-    }
+    override fun observeRecipeSummaries(searchQuery: String, tagId: String?): Flow<List<RecipeSummary>> =
+        combine(recipes, deletedIds) { all, deleted ->
+            all.values
+                .filterNot { it.id in deleted }
+                .filter { searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true) }
+                .filter { tagId == null || it.tags.any { tag -> tag.id == tagId } }
+                .sortedByDescending { it.updatedAt }
+                .map { it.toSummary() }
+        }
 
     override fun observeRecipe(id: String): Flow<Recipe?> =
         combine(recipes, deletedIds) { all, deleted -> all[id]?.takeUnless { id in deleted } }
+
+    override suspend fun getAllRecipes(): List<Recipe> = recipes.value.values.filterNot { it.id in deletedIds.value }
 
     override suspend fun saveRecipe(draft: RecipeDraft) {
         val now = clock.instant()

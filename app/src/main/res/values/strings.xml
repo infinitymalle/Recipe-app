@@ -2,11 +2,18 @@
     <string name="app_name">Recipe app</string>
 
     <string name="recipe_list_empty">No recipes yet</string>
+    <string name="recipe_list_no_matches">No matching recipes</string>
     <string name="recipe_list_add">Add recipe</string>
     <string name="recipe_list_settings">⚙</string>
+    <string name="recipe_list_search_label">Search recipes</string>
 
     <string name="settings_title">Settings</string>
-    <string name="settings_placeholder">More settings coming soon</string>
+    <string name="settings_backup_description">Save every recipe (with photos) to a file, or restore from one.</string>
+    <string name="settings_export_backup">Export backup</string>
+    <string name="settings_import_backup">Import backup</string>
+    <string name="settings_export_success_prefix">Exported</string>
+    <string name="settings_import_success_prefix">Imported</string>
+    <string name="settings_backup_error">Backup failed</string>
 
     <plurals name="recipe_servings_short">
         <item quantity="one">%1$d serving</item>

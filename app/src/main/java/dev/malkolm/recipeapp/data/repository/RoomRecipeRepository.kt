@@ -21,10 +21,12 @@ class RoomRecipeRepository
 @Inject
 constructor(private val dao: RecipeDao, private val clock: Clock) :
     RecipeRepository {
-    override fun observeRecipeSummaries(): Flow<List<RecipeSummary>> =
-        dao.observeSummaries().map { rows -> rows.map { it.toDomain() } }
+    override fun observeRecipeSummaries(searchQuery: String, tagId: String?): Flow<List<RecipeSummary>> =
+        dao.observeSummaries(searchQuery.trim(), tagId).map { rows -> rows.map { it.toDomain() } }
 
     override fun observeRecipe(id: String): Flow<Recipe?> = dao.observeDetails(id).map { it?.toDomain() }
+
+    override suspend fun getAllRecipes(): List<Recipe> = dao.getAllDetails().map { it.toDomain() }
 
     override suspend fun saveRecipe(draft: RecipeDraft) {
         dao.saveRecipe(

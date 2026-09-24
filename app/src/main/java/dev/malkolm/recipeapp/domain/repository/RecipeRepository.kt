@@ -16,11 +16,20 @@ import kotlinx.coroutines.flow.Flow
  * stays up to date without manual refreshing.
  */
 interface RecipeRepository {
-    /** All recipes, most recently changed first. Deleted recipes are not included. */
-    fun observeRecipeSummaries(): Flow<List<RecipeSummary>>
+    /**
+     * Recipes, most recently changed first. Deleted recipes are not included.
+     *
+     * [searchQuery] keeps only recipes whose title contains it (case-insensitive for ASCII;
+     * blank means no filter). [tagId] keeps only recipes carrying that tag (`null` means no
+     * filter). Both can be set at once.
+     */
+    fun observeRecipeSummaries(searchQuery: String = "", tagId: String? = null): Flow<List<RecipeSummary>>
 
     /** One recipe with its tags and attachments, or `null` if it does not exist or was deleted. */
     fun observeRecipe(id: String): Flow<Recipe?>
+
+    /** Every recipe with its tags and attachments, for a full export. Deleted recipes are not included. */
+    suspend fun getAllRecipes(): List<Recipe>
 
     /**
      * Creates the recipe, or updates it if [RecipeDraft.id] already exists. Tags are matched by
