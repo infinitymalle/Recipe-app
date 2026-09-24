@@ -14,7 +14,6 @@
     </plurals>
     <string name="recipe_cooking_time_short">%1$d min</string>
     <string name="recipe_rating_short">%1$d/5</string>
-    <string name="recipe_attachment_image">Photo</string>
     <string name="recipe_attachment_pdf">PDF</string>
 
     <string name="recipe_detail_back">Back</string>
@@ -50,6 +49,8 @@
 
     <string name="recipe_edit_add_recipe_picture">Add recipe picture</string>
     <string name="recipe_edit_change_recipe_picture">Change recipe picture</string>
+    <string name="recipe_edit_take_photo">Take photo</string>
+    <string name="recipe_edit_choose_from_gallery">Choose from gallery</string>
 
     <string name="recipe_edit_add_ingredient">+ Add ingredient</string>
     <string name="recipe_edit_ingredient_added">Ingredient added</string>

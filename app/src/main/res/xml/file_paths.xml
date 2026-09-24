@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes app/src/main/java/.../data/RecipeImageStorage.kt's "recipes/" folder to the camera app. -->
+<paths>
+    <files-path name="recipes" path="recipes/" />
+</paths>

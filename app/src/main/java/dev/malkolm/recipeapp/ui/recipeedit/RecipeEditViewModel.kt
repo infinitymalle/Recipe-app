@@ -176,6 +176,21 @@ constructor(
         }
     }
 
+    /** Creates the file/URI pair the camera app should write a photo into. */
+    suspend fun prepareCameraCapture(): RecipeImageStorage.CaptureTarget = imageStorage.createCaptureTarget(recipeId)
+
+    /** Call once the camera reports it wrote into [relativePath] (from [prepareCameraCapture]). */
+    fun addPictureAttachment(relativePath: String) {
+        val attachment = Attachment.Image(id = idGenerator.newId(), filePath = relativePath)
+        updateEditing { state -> state.copy(addedAttachments = state.addedAttachments + attachment) }
+    }
+
+    /** Call once the camera reports it wrote into [relativePath] (from [prepareCameraCapture]). */
+    fun addCoverPicture(relativePath: String) {
+        val attachment = Attachment.Image(id = idGenerator.newId(), filePath = relativePath)
+        updateEditing { state -> state.copy(addedAttachments = listOf(attachment) + state.addedAttachments) }
+    }
+
     fun removeAttachment(id: String) = updateEditing { state ->
         state.copy(addedAttachments = state.addedAttachments.filterNot { it.id == id })
     }

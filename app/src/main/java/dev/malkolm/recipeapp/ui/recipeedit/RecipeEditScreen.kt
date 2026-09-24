@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -36,9 +38,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,9 +52,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
+import dev.malkolm.recipeapp.data.RecipeImageStorage
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
+import java.io.File
+import kotlinx.coroutines.launch
 
 /** Stateful entry point: connects the ViewModel to the stateless [RecipeEditContent]. */
 @Composable
@@ -83,8 +93,11 @@ fun RecipeEditScreen(onSaved: () -> Unit, onCancel: () -> Unit, viewModel: Recip
         onTagsChange = viewModel::updateTagsText,
         onAddTextAttachment = viewModel::addTextAttachment,
         onAddLinkAttachment = viewModel::addLinkAttachment,
-        onAddPictureAttachment = viewModel::addPictureAttachment,
-        onAddCoverPicture = viewModel::addCoverPicture,
+        onAddPictureAttachment = { uri -> viewModel.addPictureAttachment(uri) },
+        onAddCoverPicture = { uri -> viewModel.addCoverPicture(uri) },
+        onPrepareCameraCapture = viewModel::prepareCameraCapture,
+        onAddPictureAttachmentFile = { path -> viewModel.addPictureAttachment(path) },
+        onAddCoverPictureFile = { path -> viewModel.addCoverPicture(path) },
         onRemoveAttachment = viewModel::removeAttachment,
         onSave = viewModel::save
     )
@@ -110,6 +123,9 @@ fun RecipeEditContent(
     onAddLinkAttachment: (title: String, url: String) -> Unit,
     onAddPictureAttachment: (Uri) -> Unit,
     onAddCoverPicture: (Uri) -> Unit,
+    onPrepareCameraCapture: suspend () -> RecipeImageStorage.CaptureTarget,
+    onAddPictureAttachmentFile: (String) -> Unit,
+    onAddCoverPictureFile: (String) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -171,6 +187,9 @@ fun RecipeEditContent(
                     onAddLinkAttachment = onAddLinkAttachment,
                     onAddPictureAttachment = onAddPictureAttachment,
                     onAddCoverPicture = onAddCoverPicture,
+                    onPrepareCameraCapture = onPrepareCameraCapture,
+                    onAddPictureAttachmentFile = onAddPictureAttachmentFile,
+                    onAddCoverPictureFile = onAddCoverPictureFile,
                     onRemoveAttachment = onRemoveAttachment
                 )
             }
@@ -195,6 +214,9 @@ private fun RecipeEditForm(
     onAddLinkAttachment: (title: String, url: String) -> Unit,
     onAddPictureAttachment: (Uri) -> Unit,
     onAddCoverPicture: (Uri) -> Unit,
+    onPrepareCameraCapture: suspend () -> RecipeImageStorage.CaptureTarget,
+    onAddPictureAttachmentFile: (String) -> Unit,
+    onAddCoverPictureFile: (String) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -203,6 +225,11 @@ private fun RecipeEditForm(
     var showAddCookingTime by remember { mutableStateOf(false) }
     var showAddText by remember { mutableStateOf(false) }
     var showAddLink by remember { mutableStateOf(false) }
+    var showCoverPictureChooser by remember { mutableStateOf(false) }
+    var showAttachmentPictureChooser by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    var pendingCapture by remember { mutableStateOf<PendingCapture?>(null) }
 
     val pickCoverPicture =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -213,6 +240,29 @@ private fun RecipeEditForm(
             if (uri != null) onAddPictureAttachment(uri)
         }
     val imageRequest = remember { PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly) }
+
+    val takePhoto =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            val pending = pendingCapture
+            pendingCapture = null
+            if (success && pending != null) {
+                if (pending.isCover) {
+                    onAddCoverPictureFile(
+                        pending.relativePath
+                    )
+                } else {
+                    onAddPictureAttachmentFile(pending.relativePath)
+                }
+            }
+        }
+
+    fun takePhotoFor(isCover: Boolean) {
+        scope.launch {
+            val target = onPrepareCameraCapture()
+            pendingCapture = PendingCapture(target.relativePath, isCover)
+            takePhoto.launch(target.uri)
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -232,20 +282,28 @@ private fun RecipeEditForm(
             )
         }
         item {
-            val hasCoverPicture = state.addedAttachments.any { it is Attachment.Image }
-            OutlinedButton(
-                onClick = { pickCoverPicture.launch(imageRequest) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    stringResource(
-                        if (hasCoverPicture) {
-                            R.string.recipe_edit_change_recipe_picture
-                        } else {
-                            R.string.recipe_edit_add_recipe_picture
-                        }
+            val coverPicture = state.addedAttachments.filterIsInstance<Attachment.Image>().firstOrNull()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (coverPicture != null) {
+                    AttachmentImage(
+                        relativePath = coverPicture.filePath,
+                        modifier = Modifier.size(96.dp).clip(RoundedCornerShape(8.dp))
                     )
-                )
+                }
+                OutlinedButton(
+                    onClick = { showCoverPictureChooser = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(
+                            if (coverPicture != null) {
+                                R.string.recipe_edit_change_recipe_picture
+                            } else {
+                                R.string.recipe_edit_add_recipe_picture
+                            }
+                        )
+                    )
+                }
             }
         }
 
@@ -335,7 +393,7 @@ private fun RecipeEditForm(
                     Text(stringResource(R.string.recipe_edit_add_link))
                 }
                 OutlinedButton(
-                    onClick = { pickAttachmentPicture.launch(imageRequest) },
+                    onClick = { showAttachmentPictureChooser = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(stringResource(R.string.recipe_edit_add_picture))
@@ -395,6 +453,64 @@ private fun RecipeEditForm(
             }
         )
     }
+    if (showCoverPictureChooser) {
+        PictureSourceDialog(
+            onDismiss = { showCoverPictureChooser = false },
+            onTakePhoto = {
+                showCoverPictureChooser = false
+                takePhotoFor(isCover = true)
+            },
+            onChooseFromGallery = {
+                showCoverPictureChooser = false
+                pickCoverPicture.launch(imageRequest)
+            }
+        )
+    }
+    if (showAttachmentPictureChooser) {
+        PictureSourceDialog(
+            onDismiss = { showAttachmentPictureChooser = false },
+            onTakePhoto = {
+                showAttachmentPictureChooser = false
+                takePhotoFor(isCover = false)
+            },
+            onChooseFromGallery = {
+                showAttachmentPictureChooser = false
+                pickAttachmentPicture.launch(imageRequest)
+            }
+        )
+    }
+}
+
+/** [relativePath] is remembered up front so the result callback (a bare success flag) knows where to look. */
+private data class PendingCapture(val relativePath: String, val isCover: Boolean)
+
+@Composable
+private fun AttachmentImage(relativePath: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    AsyncImage(
+        model = File(context.filesDir, relativePath),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun PictureSourceDialog(onDismiss: () -> Unit, onTakePhoto: () -> Unit, onChooseFromGallery: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.recipe_edit_add_picture)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onTakePhoto) { Text(stringResource(R.string.recipe_edit_take_photo)) }
+                TextButton(onClick = onChooseFromGallery) {
+                    Text(stringResource(R.string.recipe_edit_choose_from_gallery))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_edit_dialog_cancel)) } }
+    )
 }
 
 @Composable
@@ -457,8 +573,15 @@ private fun AttachmentEditRow(attachment: Attachment, onRemove: () -> Unit, modi
                 attachment.title?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
                 when (attachment) {
                     is Attachment.Text -> Text(attachment.text)
+
                     is Attachment.Link -> Text(attachment.url)
-                    is Attachment.Image -> Text(stringResource(R.string.recipe_attachment_image))
+
+                    is Attachment.Image ->
+                        AttachmentImage(
+                            relativePath = attachment.filePath,
+                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(6.dp))
+                        )
+
                     else -> Unit
                 }
             }
@@ -607,6 +730,9 @@ private fun RecipeEditContentPreview() {
             onAddLinkAttachment = { _, _ -> },
             onAddPictureAttachment = {},
             onAddCoverPicture = {},
+            onPrepareCameraCapture = { RecipeImageStorage.CaptureTarget(Uri.EMPTY, "") },
+            onAddPictureAttachmentFile = {},
+            onAddCoverPictureFile = {},
             onRemoveAttachment = {},
             onSave = {}
         )

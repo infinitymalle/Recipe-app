@@ -174,4 +174,34 @@ class RecipeEditViewModelTest {
         state = vm.uiState.first() as RecipeEditUiState.Editing
         assertTrue(state.addedAttachments.isEmpty())
     }
+
+    // These exercise the state update once a photo file exists, the same as after a successful
+    // camera capture (RecipeEditScreen.kt calls addPictureAttachment/addCoverPicture with the
+    // path from prepareCameraCapture()). prepareCameraCapture() itself isn't called here: under
+    // Robolectric, FileProvider.getUriForFile fails to match its own configured root against
+    // Robolectric's randomized files-dir path - a Robolectric quirk, not an app bug.
+    @Test
+    fun `a captured photo becomes an attachment once the camera reports success`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addPictureAttachment("recipes/1/photo.jpg")
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        val attachment = state.addedAttachments.single() as Attachment.Image
+        assertEquals("recipes/1/photo.jpg", attachment.filePath)
+    }
+
+    @Test
+    fun `a captured cover photo is placed first`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addLinkAttachment(title = "Source", url = "https://example.com")
+        vm.addCoverPicture("recipes/1/photo.jpg")
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        assertEquals("recipes/1/photo.jpg", (state.addedAttachments.first() as Attachment.Image).filePath)
+        assertEquals(2, state.addedAttachments.size)
+    }
 }
