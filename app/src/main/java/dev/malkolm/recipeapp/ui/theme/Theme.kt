@@ -11,17 +11,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val LightColors = lightColorScheme(primary = Color(0xFFB3261E))
-private val DarkColors = darkColorScheme(primary = Color(0xFFFFB4AB))
+private val LightColors = lightColorScheme(primary = Color(0xFFAD1457), secondary = Color(0xFFC2185B))
+private val DarkColors = darkColorScheme(primary = Color(0xFFF48FB1), secondary = Color(0xFFF06292))
 
 /**
- * Material 3 theme. On Android 12+ (both target phones) colours follow the user's wallpaper
- * ("dynamic color"); older devices fall back to the static schemes above.
+ * Material 3 theme, in shades of pink. Dynamic color (following the device wallpaper) is off by
+ * default so the pink palette actually shows instead of being overridden on Android 12+.
  */
 @Composable
 fun RecipeAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme =

@@ -15,13 +15,14 @@ package dev.malkolm.recipeapp.domain.model
  */
 sealed interface Attachment {
     val id: String
+    val title: String?
 
-    data class Image(override val id: String, val filePath: String, val title: String? = null) : Attachment
+    data class Image(override val id: String, val filePath: String, override val title: String? = null) : Attachment
 
     data class Pdf(
         override val id: String,
         val filePath: String,
-        val title: String? = null,
+        override val title: String? = null,
         val thumbnailPath: String? = null
     ) : Attachment
 
@@ -29,9 +30,9 @@ sealed interface Attachment {
     data class Link(
         override val id: String,
         val url: String,
-        val title: String? = null,
+        override val title: String? = null,
         val thumbnailPath: String? = null
     ) : Attachment
 
-    data class Text(override val id: String, val text: String, val title: String? = null) : Attachment
+    data class Text(override val id: String, val text: String, override val title: String? = null) : Attachment
 }
