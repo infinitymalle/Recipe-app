@@ -1,5 +1,6 @@
 package dev.malkolm.recipeapp.ui.recipelist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,10 +25,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -50,14 +57,28 @@ fun RecipeListScreen(
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenShoppingList: () -> Unit,
     viewModel: RecipeListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Chosen once, the first time recipes with a picture are seen, and kept from then on so it
+    // does not change while searching/filtering or recomposing - only a fresh app open picks again.
+    var backgroundImagePath by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(uiState) {
+        if (backgroundImagePath == null) {
+            val content = uiState as? RecipeListUiState.Content
+            backgroundImagePath = content?.recipes?.mapNotNull { it.thumbnailPath }?.randomOrNull()
+        }
+    }
+
     RecipeListContent(
         uiState = uiState,
+        backgroundImagePath = backgroundImagePath,
         onOpenRecipe = onOpenRecipe,
         onAddRecipe = onAddRecipe,
         onOpenSettings = onOpenSettings,
+        onOpenShoppingList = onOpenShoppingList,
         onSearchQueryChange = viewModel::updateSearchQuery,
         onSelectTag = viewModel::selectTag
     )
@@ -71,74 +92,102 @@ fun RecipeListContent(
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenShoppingList: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectTag: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backgroundImagePath: String? = null
 ) {
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    TextButton(onClick = onOpenSettings) {
-                        Text(stringResource(R.string.recipe_list_settings), style = MaterialTheme.typography.titleLarge)
-                    }
-                }
+    Box(modifier = modifier.fillMaxSize()) {
+        if (backgroundImagePath != null) {
+            val context = LocalContext.current
+            AsyncImage(
+                model = File(context.filesDir, backgroundImagePath),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(24.dp)
             )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = onAddRecipe) {
-                Text(stringResource(R.string.recipe_list_add))
-            }
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f)))
         }
-    ) { innerPadding ->
-        when (uiState) {
-            RecipeListUiState.Loading -> Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
-
-            is RecipeListUiState.Content -> {
-                Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        label = { Text(stringResource(R.string.recipe_list_search_label)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
-                    )
-                    if (uiState.availableTags.isNotEmpty()) {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(uiState.availableTags, key = { it.id }) { tag ->
-                                FilterChip(
-                                    selected = tag.id == uiState.selectedTagId,
-                                    onClick = { onSelectTag(tag.id) },
-                                    label = { Text(tag.name) }
-                                )
-                            }
-                        }
-                    }
-                    if (uiState.recipes.isEmpty()) {
-                        val isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedTagId != null
-                        Box(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
+        Scaffold(
+            containerColor = if (backgroundImagePath !=
+                null
+            ) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.background
+            },
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    actions = {
+                        TextButton(onClick = onOpenSettings) {
                             Text(
-                                stringResource(
-                                    if (isFiltered) R.string.recipe_list_no_matches else R.string.recipe_list_empty
-                                )
+                                stringResource(R.string.recipe_list_settings),
+                                style = MaterialTheme.typography.titleLarge
                             )
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(uiState.recipes, key = { it.id }) { recipe ->
-                                RecipeSummaryCard(recipe = recipe, onClick = { onOpenRecipe(recipe.id) })
+                    }
+                )
+            },
+            floatingActionButton = {
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExtendedFloatingActionButton(onClick = onOpenShoppingList) {
+                        Text(stringResource(R.string.recipe_list_shopping_list))
+                    }
+                    ExtendedFloatingActionButton(onClick = onAddRecipe) {
+                        Text(stringResource(R.string.recipe_list_add))
+                    }
+                }
+            }
+        ) { innerPadding ->
+            when (uiState) {
+                RecipeListUiState.Loading -> Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
+
+                is RecipeListUiState.Content -> {
+                    Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                        OutlinedTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            label = { Text(stringResource(R.string.recipe_list_search_label)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        )
+                        if (uiState.availableTags.isNotEmpty()) {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(uiState.availableTags, key = { it.id }) { tag ->
+                                    FilterChip(
+                                        selected = tag.id == uiState.selectedTagId,
+                                        onClick = { onSelectTag(tag.id) },
+                                        label = { Text(tag.name) }
+                                    )
+                                }
+                            }
+                        }
+                        if (uiState.recipes.isEmpty()) {
+                            val isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedTagId != null
+                            Box(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (isFiltered) R.string.recipe_list_no_matches else R.string.recipe_list_empty
+                                    )
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(uiState.recipes, key = { it.id }) { recipe ->
+                                    RecipeSummaryCard(recipe = recipe, onClick = { onOpenRecipe(recipe.id) })
+                                }
                             }
                         }
                     }
@@ -196,6 +245,7 @@ private fun RecipeListContentEmptyPreview() {
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
+            onOpenShoppingList = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )
@@ -228,6 +278,7 @@ private fun RecipeListContentPreview() {
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
+            onOpenShoppingList = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )

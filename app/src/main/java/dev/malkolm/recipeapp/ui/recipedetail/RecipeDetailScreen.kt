@@ -14,10 +14,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -44,6 +50,8 @@ import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
+import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.io.File
 import java.time.Instant
@@ -54,18 +62,35 @@ import kotlinx.coroutines.launch
 fun RecipeDetailScreen(
     onBack: () -> Unit,
     onEditRecipe: (String) -> Unit,
+    onCookRecipe: (String) -> Unit,
     viewModel: RecipeDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val deletedMessage = stringResource(R.string.recipe_detail_deleted_message)
+    val undoLabel = stringResource(R.string.recipe_detail_undo)
+
     RecipeDetailContent(
         uiState = uiState,
+        snackbarHostState = snackbarHostState,
         onBack = onBack,
         onEditRecipe = onEditRecipe,
+        onCookRecipe = onCookRecipe,
         onConfirmDelete = {
             scope.launch {
                 viewModel.deleteRecipe()
-                onBack()
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = deletedMessage,
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Short
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.restoreRecipe()
+                } else {
+                    onBack()
+                }
             }
         }
     )
@@ -78,13 +103,16 @@ fun RecipeDetailContent(
     uiState: RecipeDetailUiState,
     onBack: () -> Unit,
     onEditRecipe: (String) -> Unit,
+    onCookRecipe: (String) -> Unit,
     onConfirmDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -122,7 +150,11 @@ fun RecipeDetailContent(
             }
 
             is RecipeDetailUiState.Content -> {
-                RecipeDetailBody(recipe = uiState.recipe, modifier = Modifier.padding(innerPadding))
+                RecipeDetailBody(
+                    recipe = uiState.recipe,
+                    onCookRecipe = { onCookRecipe(uiState.recipe.id) },
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
         }
     }
@@ -150,12 +182,17 @@ fun RecipeDetailContent(
 }
 
 @Composable
-private fun RecipeDetailBody(recipe: Recipe, modifier: Modifier = Modifier) {
+private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            Button(onClick = onCookRecipe, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.recipe_detail_cook))
+            }
+        }
         item {
             val facts = recipeFacts(recipe)
             if (facts != null) Text(text = facts, style = MaterialTheme.typography.bodyMedium)
@@ -169,12 +206,23 @@ private fun RecipeDetailBody(recipe: Recipe, modifier: Modifier = Modifier) {
         }
         if (recipe.ingredients.isNotBlank()) {
             item {
-                Column {
-                    Text(
-                        stringResource(R.string.recipe_detail_ingredients),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Text(recipe.ingredients)
+                Text(stringResource(R.string.recipe_detail_ingredients), style = MaterialTheme.typography.titleSmall)
+            }
+            var nextId = 0
+            items(ingredientItemsFrom(recipe.ingredients) { (nextId++).toString() }) { item ->
+                when (item) {
+                    is IngredientListItem.Heading ->
+                        Text(
+                            item.text,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                    is IngredientListItem.Entry -> {
+                        val label = if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
+                        Text(label)
+                    }
                 }
             }
         }
@@ -260,6 +308,7 @@ private fun RecipeDetailContentPreview() {
                 ),
             onBack = {},
             onEditRecipe = {},
+            onCookRecipe = {},
             onConfirmDelete = {}
         )
     }

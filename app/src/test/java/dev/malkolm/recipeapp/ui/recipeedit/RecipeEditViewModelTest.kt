@@ -89,7 +89,7 @@ class RecipeEditViewModelTest {
         vm.addIngredient(name = "Flour", amount = "2 cups")
         vm.addIngredient(name = "Salt", amount = "")
         var state = vm.uiState.first() as RecipeEditUiState.Editing
-        assertEquals(listOf("Flour" to "2 cups", "Salt" to null), state.ingredients.map { it.name to it.amount })
+        assertEquals(listOf("Flour" to "2 cups", "Salt" to null), state.ingredients.map { it.asEntry() })
 
         vm.save()
         state = vm.uiState.first { (it as RecipeEditUiState.Editing).saved } as RecipeEditUiState.Editing
@@ -99,12 +99,7 @@ class RecipeEditViewModelTest {
         val reloaded =
             RecipeEditViewModel(editHandle(state.recipeId), repository, SequentialIdGenerator(), imageStorage)
         val reloadedState = reloaded.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
-        assertEquals(
-            listOf("Flour" to "2 cups", "Salt" to null),
-            reloadedState.ingredients.map {
-                it.name to it.amount
-            }
-        )
+        assertEquals(listOf("Flour" to "2 cups", "Salt" to null), reloadedState.ingredients.map { it.asEntry() })
     }
 
     @Test
@@ -115,9 +110,75 @@ class RecipeEditViewModelTest {
         vm.addIngredient(name = "Flour", amount = "")
         val added = (vm.uiState.first() as RecipeEditUiState.Editing).ingredients.single()
 
-        vm.removeIngredient(added.id)
+        vm.removeIngredientItem(added.id)
 
         assertTrue((vm.uiState.first() as RecipeEditUiState.Editing).ingredients.isEmpty())
+    }
+
+    @Test
+    fun `a heading groups ingredients and survives a save round trip`() = runTest {
+        val repository = FakeRecipeRepository()
+        val vm = viewModel(newRecipeHandle(), repository)
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.updateTitle("Sunday dinner")
+        vm.addIngredientHeading("Mashed potatoes")
+        vm.addIngredient(name = "Potatoes", amount = "1 kg")
+        vm.addIngredientHeading("Meat")
+        vm.addIngredient(name = "Chicken", amount = "")
+        vm.save()
+
+        val state = vm.uiState.first { (it as RecipeEditUiState.Editing).saved } as RecipeEditUiState.Editing
+        val saved = repository.observeRecipe(state.recipeId).first()
+        assertEquals("Mashed potatoes:\nPotatoes (1 kg)\nMeat:\nChicken", saved?.ingredients)
+
+        val reloaded =
+            RecipeEditViewModel(editHandle(state.recipeId), repository, SequentialIdGenerator(), imageStorage)
+        val reloadedState = reloaded.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
+        assertEquals(
+            listOf(
+                IngredientListItem.Heading::class to "Mashed potatoes",
+                IngredientListItem.Entry::class to "Potatoes",
+                IngredientListItem.Heading::class to "Meat",
+                IngredientListItem.Entry::class to "Chicken"
+            ),
+            reloadedState.ingredients.map {
+                it::class to when (it) {
+                    is IngredientListItem.Heading -> it.text
+                    is IngredientListItem.Entry -> it.name
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `ingredients can be reordered`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addIngredient(name = "Flour", amount = "")
+        vm.addIngredient(name = "Salt", amount = "")
+        val first = (vm.uiState.first() as RecipeEditUiState.Editing).ingredients.first()
+
+        vm.moveIngredientItem(first.id, 1)
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        assertEquals(listOf("Salt", "Flour"), state.ingredients.map { (it as IngredientListItem.Entry).name })
+    }
+
+    @Test
+    fun `moving the first item up is a no-op`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addIngredient(name = "Flour", amount = "")
+        vm.addIngredient(name = "Salt", amount = "")
+        val first = (vm.uiState.first() as RecipeEditUiState.Editing).ingredients.first()
+
+        vm.moveIngredientItem(first.id, -1)
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        assertEquals(listOf("Flour", "Salt"), state.ingredients.map { (it as IngredientListItem.Entry).name })
     }
 
     @Test
@@ -237,5 +298,10 @@ class RecipeEditViewModelTest {
         val state = vm.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
         val attachment = state.addedAttachments.single() as Attachment.Text
         assertEquals("Grandma's pancake recipe, from memory", attachment.text)
+    }
+
+    private fun IngredientListItem.asEntry(): Pair<String, String?> {
+        val entry = this as IngredientListItem.Entry
+        return entry.name to entry.amount
     }
 }

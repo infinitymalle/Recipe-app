@@ -6,10 +6,14 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.malkolm.recipeapp.data.UuidIdGenerator
 import dev.malkolm.recipeapp.data.repository.RoomRecipeRepository
+import dev.malkolm.recipeapp.data.repository.RoomShoppingListRepository
 import dev.malkolm.recipeapp.data.repository.RoomTagRepository
+import dev.malkolm.recipeapp.data.repository.SharedPreferencesThemeSettingsRepository
 import dev.malkolm.recipeapp.domain.IdGenerator
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
+import dev.malkolm.recipeapp.domain.repository.ShoppingListRepository
 import dev.malkolm.recipeapp.domain.repository.TagRepository
+import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
 
 /**
  * Tells Hilt which implementation to hand out for each domain interface. To add cloud sync later,
@@ -23,6 +27,12 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindTagRepository(impl: RoomTagRepository): TagRepository
+
+    @Binds
+    abstract fun bindThemeSettingsRepository(impl: SharedPreferencesThemeSettingsRepository): ThemeSettingsRepository
+
+    @Binds
+    abstract fun bindShoppingListRepository(impl: RoomShoppingListRepository): ShoppingListRepository
 
     @Binds
     abstract fun bindIdGenerator(impl: UuidIdGenerator): IdGenerator

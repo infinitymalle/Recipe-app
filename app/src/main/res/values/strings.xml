@@ -6,8 +6,24 @@
     <string name="recipe_list_add">Add recipe</string>
     <string name="recipe_list_settings">⚙</string>
     <string name="recipe_list_search_label">Search recipes</string>
+    <string name="recipe_list_shopping_list">Shopping list</string>
+
+    <string name="shopping_list_title">Shopping list</string>
+    <string name="shopping_list_empty">Your shopping list is empty</string>
+    <string name="shopping_list_add_item">+ Add item</string>
+    <string name="shopping_list_add_from_recipe">+ Add from recipe</string>
+    <string name="shopping_list_item_name">Item</string>
+    <string name="shopping_list_item_amount">Amount (optional)</string>
+    <string name="shopping_list_clear_checked">Clear checked</string>
+    <string name="shopping_list_pick_recipe_title">Add ingredients from…</string>
+    <string name="shopping_list_pick_recipe_empty">No recipes yet</string>
+    <string name="shopping_list_remove">Remove</string>
 
     <string name="settings_title">Settings</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
     <string name="settings_backup_description">Save every recipe (with photos) to a file, or restore from one.</string>
     <string name="settings_export_backup">Export backup</string>
     <string name="settings_import_backup">Import backup</string>
@@ -28,17 +44,34 @@
     <string name="recipe_detail_delete">Delete</string>
     <string name="recipe_detail_delete_confirm_title">Delete recipe?</string>
     <string name="recipe_detail_delete_confirm_message">This recipe will be removed from your list.</string>
+    <string name="recipe_detail_deleted_message">Recipe deleted</string>
+    <string name="recipe_detail_undo">Undo</string>
     <string name="recipe_detail_not_found">Recipe not found</string>
-    <string name="recipe_detail_ingredients">Ingredients</string>
+    <string name="recipe_detail_ingredients">Recipe</string>
     <string name="recipe_detail_notes">Notes</string>
     <string name="recipe_detail_attachments">Attachments</string>
     <string name="recipe_detail_open_link">Open link</string>
+    <string name="recipe_detail_cook">Cook recipe</string>
+
+    <string name="cook_recipe_step_label">Step %1$d of %2$d</string>
+    <string name="cook_recipe_previous">Previous</string>
+    <string name="cook_recipe_next">Next</string>
+    <string name="cook_recipe_no_steps">No instructions added for this recipe yet. Add some in Notes.</string>
+    <string name="cook_recipe_timers_title">Timers</string>
+    <string name="cook_recipe_add_timer">+ Add timer</string>
+    <string name="cook_recipe_timer_label">Label (optional, e.g. \"Rice\")</string>
+    <string name="cook_recipe_timer_minutes">Minutes</string>
+    <string name="cook_recipe_timer_minus">-1 min</string>
+    <string name="cook_recipe_timer_plus">+1 min</string>
+    <string name="cook_recipe_pause">Pause</string>
+    <string name="cook_recipe_resume">Resume</string>
+    <string name="cook_recipe_timer_default_label">Timer</string>
 
     <string name="recipe_edit_title_new">New recipe</string>
     <string name="recipe_edit_title_edit">Edit recipe</string>
     <string name="recipe_edit_field_title">Title</string>
     <string name="recipe_edit_field_title_error">Title is required</string>
-    <string name="recipe_edit_field_ingredients">Ingredients</string>
+    <string name="recipe_edit_field_ingredients">Recipe</string>
     <string name="recipe_edit_field_rating">Rating</string>
     <string name="recipe_edit_field_notes">Notes</string>
     <string name="recipe_edit_field_tags">Tags (comma separated)</string>
@@ -64,6 +97,10 @@
     <string name="recipe_edit_picture_error">Couldn\'t add that picture</string>
     <string name="recipe_edit_ingredient_name">Ingredient name</string>
     <string name="recipe_edit_ingredient_amount">Amount (optional)</string>
+    <string name="recipe_edit_add_heading">+ Add title</string>
+    <string name="recipe_edit_heading_label">Section title (e.g. \"Mashed potatoes\")</string>
+    <string name="recipe_edit_move_up">▲</string>
+    <string name="recipe_edit_move_down">▼</string>
 
     <string name="recipe_edit_add_servings">+ Add number of servings</string>
     <string name="recipe_edit_servings_label">Servings</string>

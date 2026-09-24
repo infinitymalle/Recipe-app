@@ -16,9 +16,13 @@ import org.junit.runner.Description
  * scheduler, so there is no scheduler to share. Unconfined runs coroutines eagerly instead of
  * needing one, which is what lets `viewModelScope.launch { ... }` inside `init` blocks and
  * `stateIn` observably progress in a plain `runTest { }` body.
+ *
+ * A test that needs to advance virtual time past a `delay(...)` running on `Dispatchers.Main`
+ * (e.g. a ticking timer) should pass [dispatcher] to `runTest(dispatcher) { ... }` itself, so both
+ * share one scheduler instead of two independent ones that never see each other's time advance.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class MainDispatcherRule(private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()) : TestWatcher() {
+class MainDispatcherRule(val dispatcher: TestDispatcher = UnconfinedTestDispatcher()) : TestWatcher() {
     override fun starting(description: Description) {
         Dispatchers.setMain(dispatcher)
     }

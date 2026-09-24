@@ -35,7 +35,7 @@ sealed interface RecipeEditUiState {
         val isNew: Boolean,
         val title: String = "",
         val titleError: Boolean = false,
-        val ingredients: List<IngredientEntry> = emptyList(),
+        val ingredients: List<IngredientListItem> = emptyList(),
         val servings: Int? = null,
         val cookingTimeMinutes: Int? = null,
         val rating: Int? = null,
@@ -122,7 +122,7 @@ constructor(
             state.copy(
                 ingredients =
                     state.ingredients +
-                        IngredientEntry(
+                        IngredientListItem.Entry(
                             id = idGenerator.newId(),
                             name = name.trim(),
                             amount = amount.trim().ifBlank {
@@ -134,8 +134,24 @@ constructor(
         _ingredientAdded.tryEmit(Unit)
     }
 
-    fun removeIngredient(id: String) = updateEditing { state ->
+    /** Adds a section title (e.g. "Mashed potatoes") to group the ingredients under it. */
+    fun addIngredientHeading(text: String) {
+        if (text.isBlank()) return
+        updateEditing { state ->
+            state.copy(
+                ingredients =
+                    state.ingredients + IngredientListItem.Heading(id = idGenerator.newId(), text = text.trim())
+            )
+        }
+    }
+
+    fun removeIngredientItem(id: String) = updateEditing { state ->
         state.copy(ingredients = state.ingredients.filterNot { it.id == id })
+    }
+
+    /** [direction] is -1 to move the item up a slot, +1 to move it down; a no-op past either end. */
+    fun moveIngredientItem(id: String, direction: Int) = updateEditing { state ->
+        state.copy(ingredients = state.ingredients.moved(id, direction))
     }
 
     fun setServings(text: String) = updateEditing { it.copy(servings = text.toIntOrNull()?.takeIf { n -> n >= 1 }) }
@@ -257,7 +273,7 @@ constructor(
         recipeId = id,
         isNew = false,
         title = title,
-        ingredients = ingredientEntriesFrom(ingredients) { idGenerator.newId() },
+        ingredients = ingredientItemsFrom(ingredients) { idGenerator.newId() },
         servings = servings,
         cookingTimeMinutes = cookingTimeMinutes,
         rating = rating,

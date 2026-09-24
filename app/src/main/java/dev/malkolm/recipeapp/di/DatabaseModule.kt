@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.malkolm.recipeapp.data.local.ALL_MIGRATIONS
 import dev.malkolm.recipeapp.data.local.RecipeDatabase
 import dev.malkolm.recipeapp.data.local.dao.RecipeDao
+import dev.malkolm.recipeapp.data.local.dao.ShoppingListDao
 import dev.malkolm.recipeapp.data.local.dao.TagDao
 import javax.inject.Singleton
 
@@ -30,4 +31,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTagDao(database: RecipeDatabase): TagDao = database.tagDao()
+
+    @Provides
+    fun provideShoppingListDao(database: RecipeDatabase): ShoppingListDao = database.shoppingListDao()
 }

@@ -6,22 +6,38 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.IntentCompat
 import dagger.hilt.android.AndroidEntryPoint
+import dev.malkolm.recipeapp.domain.model.ThemeMode
+import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeListRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeNavHost
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
+import javax.inject.Inject
 
 /** The only Activity: hosts all screens as Compose destinations. */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var themeSettingsRepository: ThemeSettingsRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val startDestination = shareIntentRoute(intent) ?: RecipeListRoute
         setContent {
-            RecipeAppTheme {
+            val themeMode by themeSettingsRepository.themeMode.collectAsState()
+            val darkTheme =
+                when (themeMode) {
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                }
+            RecipeAppTheme(darkTheme = darkTheme) {
                 RecipeNavHost(startDestination = startDestination)
             }
         }

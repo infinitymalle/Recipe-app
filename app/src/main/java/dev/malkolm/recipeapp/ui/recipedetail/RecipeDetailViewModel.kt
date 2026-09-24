@@ -41,4 +41,7 @@ constructor(
 
     /** Suspends until the delete is written, so the caller can navigate back right after. */
     suspend fun deleteRecipe() = recipeRepository.deleteRecipe(recipeId)
+
+    /** Undoes [deleteRecipe]. */
+    suspend fun restoreRecipe() = recipeRepository.restoreRecipe(recipeId)
 }

@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -36,6 +39,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,13 +48,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -93,7 +102,9 @@ fun RecipeEditScreen(onSaved: () -> Unit, onCancel: () -> Unit, viewModel: Recip
         onCancel = onCancel,
         onTitleChange = viewModel::updateTitle,
         onAddIngredient = viewModel::addIngredient,
-        onRemoveIngredient = viewModel::removeIngredient,
+        onAddIngredientHeading = viewModel::addIngredientHeading,
+        onRemoveIngredientItem = viewModel::removeIngredientItem,
+        onMoveIngredientItem = viewModel::moveIngredientItem,
         onSetServings = viewModel::setServings,
         onClearServings = viewModel::clearServings,
         onSetCookingTime = viewModel::setCookingTime,
@@ -121,7 +132,9 @@ fun RecipeEditContent(
     onCancel: () -> Unit,
     onTitleChange: (String) -> Unit,
     onAddIngredient: (name: String, amount: String) -> Unit,
-    onRemoveIngredient: (String) -> Unit,
+    onAddIngredientHeading: (String) -> Unit,
+    onRemoveIngredientItem: (String) -> Unit,
+    onMoveIngredientItem: (id: String, direction: Int) -> Unit,
     onSetServings: (String) -> Unit,
     onClearServings: () -> Unit,
     onSetCookingTime: (String) -> Unit,
@@ -194,7 +207,9 @@ fun RecipeEditContent(
                     modifier = Modifier.padding(innerPadding),
                     onTitleChange = onTitleChange,
                     onAddIngredient = onAddIngredient,
-                    onRemoveIngredient = onRemoveIngredient,
+                    onAddIngredientHeading = onAddIngredientHeading,
+                    onRemoveIngredientItem = onRemoveIngredientItem,
+                    onMoveIngredientItem = onMoveIngredientItem,
                     onSetServings = onSetServings,
                     onClearServings = onClearServings,
                     onSetCookingTime = onSetCookingTime,
@@ -221,7 +236,9 @@ private fun RecipeEditForm(
     state: RecipeEditUiState.Editing,
     onTitleChange: (String) -> Unit,
     onAddIngredient: (name: String, amount: String) -> Unit,
-    onRemoveIngredient: (String) -> Unit,
+    onAddIngredientHeading: (String) -> Unit,
+    onRemoveIngredientItem: (String) -> Unit,
+    onMoveIngredientItem: (id: String, direction: Int) -> Unit,
     onSetServings: (String) -> Unit,
     onClearServings: () -> Unit,
     onSetCookingTime: (String) -> Unit,
@@ -240,6 +257,13 @@ private fun RecipeEditForm(
     modifier: Modifier = Modifier
 ) {
     var showAddIngredient by remember { mutableStateOf(false) }
+    var showAddHeading by remember { mutableStateOf(false) }
+    // Drag-to-reorder for the ingredient list: dragOffsetPx tracks how far the held row has moved
+    // from its last swap; crossing half its own height triggers the same swap moveIngredientItem
+    // already uses for the up/down buttons, then the offset resets relative to the new position.
+    var draggingIngredientId by remember { mutableStateOf<String?>(null) }
+    var ingredientDragOffsetPx by remember { mutableFloatStateOf(0f) }
+    val ingredientRowHeightPx = remember { mutableStateMapOf<String, Int>() }
     var showAddServings by remember { mutableStateOf(false) }
     var showAddCookingTime by remember { mutableStateOf(false) }
     var showAddText by remember { mutableStateOf(false) }
@@ -329,12 +353,50 @@ private fun RecipeEditForm(
         item {
             Text(stringResource(R.string.recipe_edit_field_ingredients), style = MaterialTheme.typography.titleSmall)
         }
-        items(state.ingredients, key = { it.id }) { ingredient ->
-            IngredientRow(ingredient = ingredient, onRemove = { onRemoveIngredient(ingredient.id) })
+        itemsIndexed(state.ingredients, key = { _, item -> item.id }) { index, item ->
+            val isDragging = item.id == draggingIngredientId
+            IngredientListRow(
+                item = item,
+                canMoveUp = index > 0,
+                canMoveDown = index < state.ingredients.lastIndex,
+                onRemove = { onRemoveIngredientItem(item.id) },
+                onMove = { direction -> onMoveIngredientItem(item.id, direction) },
+                isDragging = isDragging,
+                dragOffsetPx = if (isDragging) ingredientDragOffsetPx else 0f,
+                onDragStart = {
+                    draggingIngredientId = item.id
+                    ingredientDragOffsetPx = 0f
+                },
+                onDrag = { deltaY ->
+                    ingredientDragOffsetPx += deltaY
+                    val rowHeight = ingredientRowHeightPx[item.id]?.toFloat() ?: 0f
+                    if (rowHeight > 0f) {
+                        if (ingredientDragOffsetPx <= -rowHeight / 2f) {
+                            onMoveIngredientItem(item.id, -1)
+                            ingredientDragOffsetPx += rowHeight
+                        } else if (ingredientDragOffsetPx >= rowHeight / 2f) {
+                            onMoveIngredientItem(item.id, 1)
+                            ingredientDragOffsetPx -= rowHeight
+                        }
+                    }
+                },
+                onDragEnd = {
+                    draggingIngredientId = null
+                    ingredientDragOffsetPx = 0f
+                },
+                modifier = Modifier.onGloballyPositioned { coords ->
+                    ingredientRowHeightPx[item.id] = coords.size.height
+                }
+            )
         }
         item {
-            OutlinedButton(onClick = { showAddIngredient = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.recipe_edit_add_ingredient))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showAddIngredient = true }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.recipe_edit_add_ingredient))
+                }
+                OutlinedButton(onClick = { showAddHeading = true }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.recipe_edit_add_heading))
+                }
             }
         }
 
@@ -427,6 +489,15 @@ private fun RecipeEditForm(
             onAdd = { name, amount ->
                 onAddIngredient(name, amount)
                 showAddIngredient = false
+            }
+        )
+    }
+    if (showAddHeading) {
+        AddHeadingDialog(
+            onDismiss = { showAddHeading = false },
+            onAdd = { text ->
+                onAddIngredientHeading(text)
+                showAddHeading = false
             }
         )
     }
@@ -566,17 +637,78 @@ private fun ValueOrAddButtonRow(
     }
 }
 
+/**
+ * A row can be reordered two ways: the ▲/▼ buttons (always precise, one slot at a time), or by
+ * long-pressing the "⠿" handle and dragging (Google Keep-style, continuous). Both end up calling
+ * the same [onMove]/[moveIngredientItem]-backed swap, so either way is exactly as reliable.
+ */
 @Composable
-private fun IngredientRow(ingredient: IngredientEntry, onRemove: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.fillMaxWidth()) {
+private fun IngredientListRow(
+    item: IngredientListItem,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onRemove: () -> Unit,
+    onMove: (direction: Int) -> Unit,
+    isDragging: Boolean,
+    dragOffsetPx: Float,
+    onDragStart: () -> Unit,
+    onDrag: (deltaY: Float) -> Unit,
+    onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .zIndex(if (isDragging) 1f else 0f)
+            .graphicsLayer { translationY = dragOffsetPx },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 6.dp else 0.dp)
+    ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val label =
-                if (ingredient.amount.isNullOrBlank()) ingredient.name else "${ingredient.name} (${ingredient.amount})"
-            Text(label, modifier = Modifier.padding(top = 8.dp))
-            TextButton(onClick = onRemove) { Text(stringResource(R.string.recipe_edit_remove_attachment)) }
+            Row {
+                Text(
+                    "⠿",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier =
+                        Modifier
+                            .padding(end = 8.dp, top = 8.dp)
+                            .pointerInput(item.id) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { onDragStart() },
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragEnd,
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        onDrag(dragAmount.y)
+                                    }
+                                )
+                            }
+                )
+                when (item) {
+                    is IngredientListItem.Heading ->
+                        Text(
+                            item.text,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                    is IngredientListItem.Entry -> {
+                        val label = if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
+                        Text(label, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            }
+            Row {
+                if (canMoveUp) {
+                    TextButton(onClick = { onMove(-1) }) { Text(stringResource(R.string.recipe_edit_move_up)) }
+                }
+                if (canMoveDown) {
+                    TextButton(onClick = { onMove(1) }) { Text(stringResource(R.string.recipe_edit_move_down)) }
+                }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.recipe_edit_remove_attachment)) }
+            }
         }
     }
 }
@@ -632,6 +764,28 @@ private fun AddIngredientDialog(onDismiss: () -> Unit, onAdd: (name: String, amo
         },
         confirmButton = {
             TextButton(onClick = { onAdd(name, amount) }, enabled = name.isNotBlank()) {
+                Text(stringResource(R.string.recipe_edit_dialog_add))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_edit_dialog_cancel)) } }
+    )
+}
+
+@Composable
+private fun AddHeadingDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.recipe_edit_add_heading)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.recipe_edit_heading_label)) }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onAdd(text) }, enabled = text.isNotBlank()) {
                 Text(stringResource(R.string.recipe_edit_dialog_add))
             }
         },
@@ -737,7 +891,9 @@ private fun RecipeEditContentPreview() {
             onCancel = {},
             onTitleChange = {},
             onAddIngredient = { _, _ -> },
-            onRemoveIngredient = {},
+            onAddIngredientHeading = {},
+            onRemoveIngredientItem = {},
+            onMoveIngredientItem = { _, _ -> },
             onSetServings = {},
             onClearServings = {},
             onSetCookingTime = {},
