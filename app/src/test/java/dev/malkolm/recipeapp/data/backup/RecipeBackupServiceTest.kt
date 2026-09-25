@@ -10,8 +10,13 @@ import dev.malkolm.recipeapp.domain.model.Tag
 import dev.malkolm.recipeapp.testutil.FakeRecipeRepository
 import dev.malkolm.recipeapp.testutil.SequentialIdGenerator
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
@@ -73,20 +78,88 @@ class RecipeBackupServiceTest {
     }
 
     @Test
-    fun `exportForSharing then importShared round-trips a single recipe`() = runTest {
+    fun `importShared saves a copy with fresh ids and its photo in the copy's own folder`() = runTest {
         val sourceRepo = FakeRecipeRepository()
         val exportService = RecipeBackupService(context, sourceRepo, SequentialIdGenerator())
-        sourceRepo.saveRecipe(RecipeDraft(id = "r1", title = "Pancakes", ingredients = "Flour (2 cups)"))
+        val imageFile = File(context.filesDir, "recipes/r1/photo.jpg")
+        imageFile.parentFile?.mkdirs()
+        imageFile.writeBytes(byteArrayOf(1, 2, 3))
+        sourceRepo.saveRecipe(
+            RecipeDraft(
+                id = "r1",
+                title = "Pancakes",
+                ingredients = "Flour (2 cups)",
+                attachments = listOf(Attachment.Image(id = "a1", filePath = "recipes/r1/photo.jpg"))
+            )
+        )
 
         val sharedFile = exportService.exportForSharing("r1")
         assertNotNull(sharedFile)
 
         val destinationRepo = FakeRecipeRepository()
-        val importService = RecipeBackupService(context, destinationRepo, SequentialIdGenerator())
+        val importService = RecipeBackupService(context, destinationRepo, SequentialIdGenerator("copy"))
         val importedId = importService.importShared(Uri.fromFile(sharedFile))
 
-        assertEquals("r1", importedId)
-        assertEquals("Pancakes", destinationRepo.observeRecipe("r1").first()?.title)
+        assertNotNull(importedId)
+        assertNotEquals("r1", importedId)
+        val imported = destinationRepo.observeRecipe(importedId).first()
+        assertEquals("Pancakes", imported?.title)
+        assertEquals("Flour (2 cups)", imported?.ingredients)
+        val attachment = imported?.attachments?.single() as Attachment.Image
+        assertNotEquals("a1", attachment.id)
+        assertEquals("recipes/$importedId/photo.jpg", attachment.filePath)
+        assertTrue(File(context.filesDir, attachment.filePath).readBytes().contentEquals(byteArrayOf(1, 2, 3)))
+    }
+
+    @Test
+    fun `importing a shared recipe back into the phone it came from does not overwrite the original`() = runTest {
+        val repo = FakeRecipeRepository()
+        val service = RecipeBackupService(context, repo, SequentialIdGenerator())
+        val originalPhoto = File(context.filesDir, "recipes/r1/photo.jpg")
+        originalPhoto.parentFile?.mkdirs()
+        originalPhoto.writeBytes(byteArrayOf(1, 2, 3))
+        repo.saveRecipe(
+            RecipeDraft(
+                id = "r1",
+                title = "Pancakes",
+                attachments = listOf(Attachment.Image(id = "a1", filePath = "recipes/r1/photo.jpg"))
+            )
+        )
+        val sharedFile = assertNotNull(service.exportForSharing("r1"))
+
+        // Someone edits their copy (title and photo), and shares it back.
+        repo.saveRecipe(RecipeDraft(id = "r1", title = "My pancakes"))
+        originalPhoto.writeBytes(byteArrayOf(9, 9))
+
+        service.importShared(Uri.fromFile(sharedFile))
+
+        assertEquals(2, repo.getAllRecipes().size)
+        assertEquals("My pancakes", repo.observeRecipe("r1").first()?.title)
+        assertTrue(originalPhoto.readBytes().contentEquals(byteArrayOf(9, 9)))
+    }
+
+    @Test
+    fun `a zip entry that points outside the files directory is refused`() = runTest {
+        val zipFile = File(context.cacheDir, "evil.recipe.zip")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("files/../evil.txt"))
+            zip.write("pwned".toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("manifest.json"))
+            zip.write("""{"recipes":[{"id":"r1","title":"Evil","ingredients":""}]}""".toByteArray())
+            zip.closeEntry()
+        }
+        val repo = FakeRecipeRepository()
+        val service = RecipeBackupService(context, repo, SequentialIdGenerator())
+
+        assertFailsWith<IllegalArgumentException> { service.import(Uri.fromFile(zipFile)) }
+        assertTrue(repo.getAllRecipes().isEmpty())
+
+        // A shared import keeps only each file's name, so the same entry lands in the copy's folder.
+        val copyId = service.importShared(Uri.fromFile(zipFile))
+        assertTrue(File(context.filesDir, "recipes/$copyId/evil.txt").exists())
+
+        assertFalse(File(context.filesDir.parentFile, "evil.txt").exists())
     }
 
     @Test

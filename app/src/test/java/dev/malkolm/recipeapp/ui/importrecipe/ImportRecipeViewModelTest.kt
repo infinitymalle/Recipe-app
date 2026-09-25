@@ -36,12 +36,13 @@ class ImportRecipeViewModelTest {
 
         val destinationRepo = FakeRecipeRepository()
         val importService =
-            RecipeBackupService(ApplicationProvider.getApplicationContext(), destinationRepo, SequentialIdGenerator())
+            RecipeBackupService(ApplicationProvider.getApplicationContext(), destinationRepo, SequentialIdGenerator("copy"))
         val viewModel = ImportRecipeViewModel(handleFor(sharedUri.toString()), importService)
 
         val state = viewModel.uiState.first { it !is ImportRecipeUiState.Loading }
-        assertEquals(ImportRecipeUiState.Imported("r1"), state)
-        assertEquals("Pancakes", destinationRepo.observeRecipe("r1").first()?.title)
+        // Shared recipes are imported as a copy with a fresh id (the first one the generator hands out).
+        assertEquals(ImportRecipeUiState.Imported("copy-0"), state)
+        assertEquals("Pancakes", destinationRepo.observeRecipe("copy-0").first()?.title)
     }
 
     @Test

@@ -86,29 +86,62 @@ constructor(
 
     /**
      * Imports the first recipe from [source] (a file made by [exportForSharing], received via the
-     * share sheet) and returns its id, or `null` if [source] has no recipe to import.
+     * share sheet) as a new copy and returns the copy's id, or `null` if [source] has no recipe.
+     *
+     * Unlike [import], every id is replaced with a fresh one: a shared recipe comes from someone
+     * else, so keeping its id would let it silently overwrite a recipe already here (e.g. one you
+     * sent them that they edited and sent back).
      */
     suspend fun importShared(source: Uri): String? = withContext(Dispatchers.IO) {
-        val recipe = readManifest(source)?.recipes?.firstOrNull() ?: return@withContext null
-        recipeRepository.saveRecipe(recipe.toDraft())
-        recipe.id
+        val newId = idGenerator.newId()
+        // The photos move too, into the copy's own folder, so they can never overwrite the files
+        // of the recipe they were copied from.
+        val movePath = { path: String -> "recipes/$newId/${File(path).name}" }
+        val recipe = readManifest(source, movePath)?.recipes?.firstOrNull() ?: return@withContext null
+        val copy = recipe.asNewCopy(newId, movePath)
+        recipeRepository.saveRecipe(copy.toDraft())
+        copy.id
     }
 
-    private fun readManifest(source: Uri): BackupManifest? {
+    private fun BackupRecipe.asNewCopy(newId: String, movePath: (String) -> String): BackupRecipe = copy(
+        id = newId,
+        attachments =
+            attachments.map { attachment ->
+                when (attachment) {
+                    is BackupAttachment.Text -> attachment.copy(id = idGenerator.newId())
+
+                    is BackupAttachment.Link ->
+                        attachment.copy(id = idGenerator.newId(), thumbnailPath = attachment.thumbnailPath?.let(movePath))
+
+                    is BackupAttachment.Image ->
+                        attachment.copy(id = idGenerator.newId(), filePath = movePath(attachment.filePath))
+
+                    is BackupAttachment.Pdf ->
+                        attachment.copy(
+                            id = idGenerator.newId(),
+                            filePath = movePath(attachment.filePath),
+                            thumbnailPath = attachment.thumbnailPath?.let(movePath)
+                        )
+                }
+            }
+    )
+
+    /** [mapPath] turns each file's path in the zip into where it is saved (unchanged by default). */
+    private fun readManifest(source: Uri, mapPath: (String) -> String = { it }): BackupManifest? {
         val input = context.contentResolver.openInputStream(source) ?: error("Could not open $source")
-        return input.use { stream -> ZipInputStream(stream).use { zip -> zip.extractFilesAndReadManifest() } }
+        return input.use { stream -> ZipInputStream(stream).use { zip -> zip.extractFilesAndReadManifest(mapPath) } }
     }
 
     /** Extracts every `files/` entry into place and returns the parsed manifest, if present. */
-    private fun ZipInputStream.extractFilesAndReadManifest(): BackupManifest? {
+    private fun ZipInputStream.extractFilesAndReadManifest(mapPath: (String) -> String): BackupManifest? {
         var manifest: BackupManifest? = null
         var entry = nextEntry
         while (entry != null) {
             when {
                 entry.name == MANIFEST_ENTRY -> manifest = json.decodeFromString(readBytes().decodeToString())
 
-                entry.name.startsWith(FILES_PREFIX) -> {
-                    val destination = File(context.filesDir, entry.name.removePrefix(FILES_PREFIX))
+                entry.name.startsWith(FILES_PREFIX) && !entry.isDirectory -> {
+                    val destination = safeDestination(mapPath(entry.name.removePrefix(FILES_PREFIX)))
                     destination.parentFile?.mkdirs()
                     destination.outputStream().use { out -> copyTo(out) }
                 }
@@ -157,6 +190,20 @@ constructor(
                 thumbnailPath = thumbnailPath?.let { addFileEntry(zip, it) }
             )
         }
+    }
+
+    /**
+     * Where a zip entry's file goes, refusing any path that escapes the files directory ("Zip
+     * Slip": an entry named `files/../databases/recipes.db` would otherwise overwrite the database).
+     * Shared files come from other people, so the zip cannot be trusted.
+     */
+    private fun safeDestination(relativePath: String): File {
+        val root = context.filesDir.canonicalFile
+        val destination = File(root, relativePath).canonicalFile
+        require(destination.toPath().startsWith(root.toPath()) && destination != root) {
+            "Refusing zip entry outside the files directory: $relativePath"
+        }
+        return destination
     }
 
     /** Adds the file at [relativePath] under `files/` in the zip. Returns [relativePath], or `null` if missing. */
