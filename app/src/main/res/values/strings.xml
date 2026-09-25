@@ -54,6 +54,10 @@
 
     <string name="recipe_detail_back">Back</string>
     <string name="recipe_detail_method">Method</string>
+    <string name="recipe_detail_servings_less">−</string>
+    <string name="recipe_detail_servings_more">+</string>
+    <string name="recipe_detail_servings_reset">Reset</string>
+    <string name="recipe_detail_scaled_note">Scaled amounts are a guide: spices, leavening and baking times don\'t always scale evenly.</string>
     <string name="recipe_detail_step_number">%1$d.</string>
     <string name="recipe_detail_edit">Edit</string>
     <string name="recipe_detail_share">Share</string>

@@ -3,13 +3,16 @@ package dev.malkolm.recipeapp.data.backup
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.malkolm.recipeapp.data.AppFiles
 import dev.malkolm.recipeapp.domain.IdGenerator
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.RecipeDraft
 import dev.malkolm.recipeapp.domain.model.Tag
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -23,6 +26,14 @@ import kotlinx.serialization.json.Json
 
 private const val MANIFEST_ENTRY = "manifest.json"
 private const val FILES_PREFIX = "files/"
+
+/** Upper bounds for reading a zip from outside the app; far above any real backup's needs. */
+internal object ZipLimits {
+    const val MAX_ENTRIES = 10_000
+    const val MAX_MANIFEST_BYTES = 20L * 1024 * 1024
+    const val MAX_FILE_BYTES = 100L * 1024 * 1024
+    const val MAX_TOTAL_BYTES = 4L * 1024 * 1024 * 1024
+}
 
 /**
  * Exports every recipe to a single zip file (a [BackupManifest] as `manifest.json`, plus a copy
@@ -58,6 +69,8 @@ constructor(
     /** Reads every recipe from [source] and saves it. Returns how many were read. */
     suspend fun import(source: Uri): Int = withContext(Dispatchers.IO) {
         val manifest = readManifest(source) ?: error("Backup file has no manifest")
+        // Checked before anything is saved, so a crafted file changes nothing.
+        manifest.recipes.forEach { it.requireSafe() }
         for (recipe in manifest.recipes) {
             recipeRepository.saveRecipe(recipe.toDraft())
         }
@@ -99,8 +112,28 @@ constructor(
         val movePath = { path: String -> "recipes/$newId/${File(path).name}" }
         val recipe = readManifest(source, movePath)?.recipes?.firstOrNull() ?: return@withContext null
         val copy = recipe.asNewCopy(newId, movePath)
+        copy.requireSafe()
         recipeRepository.saveRecipe(copy.toDraft())
         copy.id
+    }
+
+    /**
+     * Refuses a recipe read from a file whose id or file paths could reach outside the photo
+     * folders: an id like "../x" becomes a folder name, and a photo path like "../databases/..."
+     * would be read (and put into the next share file) or deleted later. See [AppFiles].
+     */
+    private fun BackupRecipe.requireSafe() {
+        require(AppFiles.isSafeId(id)) { "Unsafe recipe id in file" }
+        val paths =
+            attachments.flatMap { attachment ->
+                when (attachment) {
+                    is BackupAttachment.Text -> emptyList()
+                    is BackupAttachment.Link -> listOfNotNull(attachment.thumbnailPath)
+                    is BackupAttachment.Image -> listOf(attachment.filePath)
+                    is BackupAttachment.Pdf -> listOfNotNull(attachment.filePath, attachment.thumbnailPath)
+                }
+            }
+        require(paths.all(AppFiles::isSafeRelativePath)) { "Unsafe file path in file" }
     }
 
     private fun BackupRecipe.asNewCopy(newId: String, movePath: (String) -> String): BackupRecipe = copy(
@@ -135,24 +168,51 @@ constructor(
         return input.use { stream -> ZipInputStream(stream).use { zip -> zip.extractFilesAndReadManifest(mapPath) } }
     }
 
-    /** Extracts every `files/` entry into place and returns the parsed manifest, if present. */
+    /**
+     * Extracts every `files/` entry into place and returns the parsed manifest, if present.
+     * Sizes are capped (see [ZipLimits]) so a "zip bomb" cannot fill the phone or run it out of
+     * memory; the sizes a zip claims are not trusted, the bytes are counted while copying.
+     */
     private fun ZipInputStream.extractFilesAndReadManifest(mapPath: (String) -> String): BackupManifest? {
         var manifest: BackupManifest? = null
+        var entryCount = 0
+        var totalBytes = 0L
         var entry = nextEntry
         while (entry != null) {
+            require(++entryCount <= ZipLimits.MAX_ENTRIES) { "Too many files in zip" }
             when {
-                entry.name == MANIFEST_ENTRY -> manifest = json.decodeFromString(readBytes().decodeToString())
+                entry.name == MANIFEST_ENTRY -> {
+                    val bytes = ByteArrayOutputStream()
+                    copyLimited(bytes, ZipLimits.MAX_MANIFEST_BYTES)
+                    manifest = json.decodeFromString(bytes.toByteArray().decodeToString())
+                }
 
                 entry.name.startsWith(FILES_PREFIX) && !entry.isDirectory -> {
-                    val destination = safeDestination(mapPath(entry.name.removePrefix(FILES_PREFIX)))
+                    val relativePath = mapPath(entry.name.removePrefix(FILES_PREFIX))
+                    require(AppFiles.isSafeRelativePath(relativePath)) { "Unsafe file path in zip" }
+                    val destination = safeDestination(relativePath)
                     destination.parentFile?.mkdirs()
-                    destination.outputStream().use { out -> copyTo(out) }
+                    val limit = minOf(ZipLimits.MAX_FILE_BYTES, ZipLimits.MAX_TOTAL_BYTES - totalBytes)
+                    totalBytes += destination.outputStream().use { out -> copyLimited(out, limit) }
                 }
             }
             closeEntry()
             entry = nextEntry
         }
         return manifest
+    }
+
+    /** Copies the current entry, failing once more than [limit] bytes have been read. */
+    private fun ZipInputStream.copyLimited(out: OutputStream, limit: Long): Long {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var copied = 0L
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) return copied
+            copied += read
+            require(copied <= limit) { "File in zip is too large" }
+            out.write(buffer, 0, read)
+        }
     }
 
     private fun Recipe.toBackup(zip: ZipOutputStream): BackupRecipe = BackupRecipe(
@@ -212,6 +272,8 @@ constructor(
 
     /** Adds the file at [relativePath] under `files/` in the zip. Returns [relativePath], or `null` if missing. */
     private fun addFileEntry(zip: ZipOutputStream, relativePath: String): String? {
+        // Never put anything but photos into a file that leaves the phone, whatever the path says.
+        if (!AppFiles.isSafeRelativePath(relativePath)) return null
         val file = File(context.filesDir, relativePath)
         if (!file.isFile) return null
         zip.putNextEntry(ZipEntry(FILES_PREFIX + relativePath))

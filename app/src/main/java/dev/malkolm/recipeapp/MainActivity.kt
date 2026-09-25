@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.core.view.WindowCompat
 import dagger.hilt.android.AndroidEntryPoint
+import dev.malkolm.recipeapp.data.AppFiles
 import dev.malkolm.recipeapp.domain.model.ThemeMode
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
 import dev.malkolm.recipeapp.ui.components.LocalBackgroundBlur
@@ -101,7 +102,9 @@ fun shareIntentRoute(intent: Intent): Any? {
         return if (text.isNullOrBlank()) null else RecipeEditRoute(sharedText = text)
     }
 
-    val streamUri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.toString()
+    val streamUri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+        ?.takeIf(AppFiles::isReadableSharedUri)
+        ?.toString()
         ?: return null
     return when {
         type.startsWith("image/") -> RecipeEditRoute(sharedImageUri = streamUri)

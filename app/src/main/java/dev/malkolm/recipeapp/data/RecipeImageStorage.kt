@@ -48,8 +48,9 @@ constructor(@ApplicationContext private val context: Context) {
         relativePath
     }
 
+    /** Deletes a photo; does nothing for a path outside the photo folders. */
     suspend fun delete(relativePath: String) = withContext(Dispatchers.IO) {
-        resolve(relativePath).delete()
+        if (AppFiles.isSafeRelativePath(relativePath)) resolve(relativePath).delete()
         Unit
     }
 
@@ -58,7 +59,7 @@ constructor(@ApplicationContext private val context: Context) {
      * picture, or a camera shot from an edit that was cancelled. Call after the recipe is saved.
      */
     suspend fun deleteUnused(recipeId: String, keep: Set<String>) = withContext(Dispatchers.IO) {
-        val folder = resolve("recipes/$recipeId")
+        val folder = resolve(recipeFolder(recipeId))
         folder.listFiles()?.forEach { file ->
             if ("recipes/$recipeId/${file.name}" !in keep) file.delete()
         }
@@ -73,7 +74,13 @@ constructor(@ApplicationContext private val context: Context) {
         } ?: error("Could not open $sourceUri")
     }
 
-    private fun newRelativePath(recipeId: String) = "recipes/$recipeId/${UUID.randomUUID()}.jpg"
+    private fun newRelativePath(recipeId: String) = "${recipeFolder(recipeId)}/${UUID.randomUUID()}.jpg"
+
+    /** A recipe's photo folder; refuses an id that could point elsewhere, e.g. "../databases". */
+    private fun recipeFolder(recipeId: String): String {
+        require(AppFiles.isSafeId(recipeId)) { "Unsafe recipe id" }
+        return "recipes/$recipeId"
+    }
 
     data class CaptureTarget(val uri: Uri, val relativePath: String)
 }

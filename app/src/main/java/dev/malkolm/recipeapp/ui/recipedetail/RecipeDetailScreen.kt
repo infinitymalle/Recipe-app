@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,9 +54,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
+import dev.malkolm.recipeapp.data.AppFiles
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.domain.model.scaleAmount
 import dev.malkolm.recipeapp.domain.model.stepsFrom
 import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
@@ -240,6 +243,11 @@ private fun Recipe.picturePath(): String? = attachments.firstNotNullOfOrNull { a
 
 @Composable
 private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier: Modifier = Modifier) {
+    // Servings to show amounts for. Only changes what is displayed, never the saved recipe; resets
+    // when the recipe's own servings change (e.g. after an edit).
+    var shownServings by rememberSaveable(recipe.id, recipe.servings) { mutableStateOf(recipe.servings) }
+    val scale = recipe.servings?.let { original -> (shownServings ?: original).toDouble() / original } ?: 1.0
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -252,10 +260,20 @@ private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier:
         }
         // Every section sits on a solid card so it stays readable over the blurred recipe photo.
         item {
-            val facts = recipeFacts(recipe)
+            val facts = recipeFacts(recipe, includeServings = recipe.servings == null)
             SectionCard(title = null) {
                 Text(recipe.title, style = MaterialTheme.typography.headlineSmall)
                 if (facts != null) Text(text = facts, style = MaterialTheme.typography.bodyMedium)
+                val original = recipe.servings
+                val shown = shownServings
+                if (original != null && shown != null) {
+                    ServingsStepper(
+                        servings = shown,
+                        isScaled = shown != original,
+                        onChange = { shownServings = it.coerceAtLeast(1) },
+                        onReset = { shownServings = original }
+                    )
+                }
                 if (recipe.tags.isNotEmpty()) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         recipe.tags.forEach { tag -> AssistChip(onClick = {}, label = { Text(tag.name) }) }
@@ -278,9 +296,8 @@ private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier:
                                 )
 
                             is IngredientListItem.Entry -> {
-                                val label =
-                                    if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
-                                Text(label)
+                                val amount = item.amount?.takeIf { it.isNotBlank() }?.let { scaleAmount(it, scale) }
+                                Text(if (amount == null) item.name else "${item.name} ($amount)")
                             }
                         }
                     }
@@ -338,10 +355,40 @@ private fun SectionCard(title: String?, content: @Composable ColumnScope.() -> U
     }
 }
 
+/**
+ * "− 4 servings +": scales the ingredient amounts shown above. When scaled, a note warns that the
+ * result is a guide, and Reset goes back to the recipe's own servings.
+ */
 @Composable
-private fun recipeFacts(recipe: Recipe): String? {
+private fun ServingsStepper(servings: Int, isScaled: Boolean, onChange: (Int) -> Unit, onReset: () -> Unit) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { onChange(servings - 1) }, enabled = servings > 1) {
+                Text(stringResource(R.string.recipe_detail_servings_less), style = MaterialTheme.typography.titleLarge)
+            }
+            Text(
+                pluralStringResource(R.plurals.recipe_servings_short, servings, servings),
+                style = MaterialTheme.typography.titleMedium
+            )
+            TextButton(onClick = { onChange(servings + 1) }) {
+                Text(stringResource(R.string.recipe_detail_servings_more), style = MaterialTheme.typography.titleLarge)
+            }
+            if (isScaled) {
+                TextButton(onClick = onReset) { Text(stringResource(R.string.recipe_detail_servings_reset)) }
+            }
+        }
+        if (isScaled) {
+            Text(stringResource(R.string.recipe_detail_scaled_note), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun recipeFacts(recipe: Recipe, includeServings: Boolean = true): String? {
     val parts = mutableListOf<String>()
-    recipe.servings?.let { parts += pluralStringResource(R.plurals.recipe_servings_short, it, it) }
+    if (includeServings) {
+        recipe.servings?.let { parts += pluralStringResource(R.plurals.recipe_servings_short, it, it) }
+    }
     recipe.cookingTimeMinutes?.let { parts += stringResource(R.string.recipe_cooking_time_short, it) }
     recipe.rating?.let { parts += stringResource(R.string.recipe_rating_short, it) }
     return parts.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
@@ -358,8 +405,13 @@ private fun AttachmentRow(attachment: Attachment, modifier: Modifier = Modifier)
 
                 is Attachment.Link -> {
                     Text(text = attachment.url, color = MaterialTheme.colorScheme.primary)
-                    TextButton(onClick = { uriHandler.openUri(attachment.url) }) {
-                        Text(stringResource(R.string.recipe_detail_open_link))
+                    // Only web pages: a shared recipe's link could otherwise be an intent: or
+                    // file: URI that launches or opens something else. And a link no app can
+                    // open must not crash the app.
+                    if (AppFiles.isWebLink(attachment.url)) {
+                        TextButton(onClick = { runCatching { uriHandler.openUri(attachment.url.trim()) } }) {
+                            Text(stringResource(R.string.recipe_detail_open_link))
+                        }
                     }
                 }
 

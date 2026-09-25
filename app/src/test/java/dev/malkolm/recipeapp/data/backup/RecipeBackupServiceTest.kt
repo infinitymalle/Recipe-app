@@ -140,6 +140,64 @@ class RecipeBackupServiceTest {
         assertTrue(originalPhoto.readBytes().contentEquals(byteArrayOf(9, 9)))
     }
 
+    /** A zip with [manifestJson] as its manifest and no files. */
+    private fun zipWithManifest(name: String, manifestJson: String): Uri {
+        val zipFile = File(context.cacheDir, name)
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("manifest.json"))
+            zip.write(manifestJson.toByteArray())
+            zip.closeEntry()
+        }
+        return Uri.fromFile(zipFile)
+    }
+
+    @Test
+    fun `a backup whose photo path points outside the photo folders is refused`() = runTest {
+        val uri =
+            zipWithManifest(
+                "evil-path.zip",
+                """{"recipes":[{"id":"r1","title":"Evil","ingredients":"",""" +
+                    """"attachments":[{"type":"image","id":"a1","filePath":"../databases/recipes.db"}]}]}"""
+            )
+        val repo = FakeRecipeRepository()
+
+        assertFailsWith<IllegalArgumentException> {
+            RecipeBackupService(context, repo, SequentialIdGenerator()).import(uri)
+        }
+        assertTrue(repo.getAllRecipes().isEmpty())
+    }
+
+    @Test
+    fun `a backup with a recipe id that could name another folder is refused`() = runTest {
+        val uri =
+            zipWithManifest("evil-id.zip", """{"recipes":[{"id":"../databases","title":"Evil","ingredients":""}]}""")
+        val repo = FakeRecipeRepository()
+
+        assertFailsWith<IllegalArgumentException> {
+            RecipeBackupService(context, repo, SequentialIdGenerator()).import(uri)
+        }
+        assertTrue(repo.getAllRecipes().isEmpty())
+    }
+
+    @Test
+    fun `exporting never puts files from outside the photo folders into the zip`() = runTest {
+        val repo = FakeRecipeRepository()
+        File(context.filesDir, "secret.txt").writeText("private")
+        repo.saveRecipe(
+            RecipeDraft(
+                id = "r1",
+                title = "Pancakes",
+                attachments = listOf(Attachment.Image(id = "a1", filePath = "../files/secret.txt"))
+            )
+        )
+
+        val sharedFile =
+            assertNotNull(RecipeBackupService(context, repo, SequentialIdGenerator()).exportForSharing("r1"))
+
+        val names = java.util.zip.ZipFile(sharedFile).use { zip -> zip.entries().toList().map { it.name } }
+        assertEquals(listOf("manifest.json"), names)
+    }
+
     @Test
     fun `a zip entry that points outside the files directory is refused`() = runTest {
         val zipFile = File(context.cacheDir, "evil.recipe.zip")

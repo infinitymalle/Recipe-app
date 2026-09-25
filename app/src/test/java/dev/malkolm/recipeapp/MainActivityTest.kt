@@ -77,4 +77,18 @@ class MainActivityTest {
 
         assertEquals(ImportRecipeRoute(uri = uri.toString()), shareIntentRoute(intent))
     }
+
+    @Test
+    fun `a shared file URI is ignored, since it could point at the app's own private files`() {
+        val database = Uri.parse("file:///data/data/dev.malkolm.recipeapp/databases/recipes.db")
+        for (type in listOf("image/jpeg", "application/zip")) {
+            val intent =
+                Intent(Intent.ACTION_SEND).apply {
+                    this.type = type
+                    putExtra(Intent.EXTRA_STREAM, database)
+                }
+
+            assertNull(shareIntentRoute(intent), type)
+        }
+    }
 }
