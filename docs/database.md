@@ -21,8 +21,15 @@ Design choices worth knowing:
   future sync can tell other devices about it.
 - **File paths are relative** to the app's files directory, so they stay valid after a backup
   restore.
-- **Ingredients are plain text** for now. To make them structured later: add an `ingredients`
-  table in a migration, fill it by parsing the old text, keep the text column until you trust it.
+- **Ingredients are plain text** for now: one line each, `Name (amount)`, with `Heading:` lines
+  for sections. The amount is always the last bracket group, so names may contain brackets; an
+  entry without an amount whose name ends in `)` or `:` is saved with an empty `()` so it reads
+  back correctly (see `IngredientListItem.kt`). To make them structured later: add an
+  `ingredients` table in a migration, fill it by parsing the old text, keep the text column until
+  you trust it.
+- **The method is plain text** too (`recipes.method`, since version 4): one step per paragraph,
+  separated by a blank line (see `RecipeSteps.kt`). Recipes saved before version 4 may have their
+  steps in `notes` instead; cook mode falls back to the notes when the method is empty.
 
 ## Changing the schema (step by step)
 

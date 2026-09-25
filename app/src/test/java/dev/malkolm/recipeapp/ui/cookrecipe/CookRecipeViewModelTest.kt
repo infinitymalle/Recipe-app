@@ -33,21 +33,16 @@ class CookRecipeViewModelTest {
         CookTimerRepository(ApplicationProvider.getApplicationContext(), SequentialIdGenerator())
 
     @Test
-    fun `steps come from notes split on blank lines`() {
-        assertEquals(emptyList(), stepsFrom(""))
-        assertEquals(emptyList(), stepsFrom("   \n\n "))
-        assertEquals(listOf("Mix everything."), stepsFrom("Mix everything."))
-        assertEquals(
-            listOf("Mix flour and water.", "Knead for 10 minutes.", "Let it rest."),
-            stepsFrom("Mix flour and water.\n\nKnead for 10 minutes.\n\nLet it rest.")
-        )
-    }
-
-    @Test
     fun `loads the recipe's title, steps and suggested timer`() = runTest {
         val repository = FakeRecipeRepository()
         repository.saveRecipe(
-            RecipeDraft(id = "r1", title = "Pancakes", notes = "Mix.\n\nCook.", cookingTimeMinutes = 12)
+            RecipeDraft(
+                id = "r1",
+                title = "Pancakes",
+                method = "Mix.\n\nCook.",
+                notes = "Grandma's favourite",
+                cookingTimeMinutes = 12
+            )
         )
         val vm = CookRecipeViewModel(handleFor("r1"), repository, newCookTimerRepository())
 
@@ -56,6 +51,16 @@ class CookRecipeViewModelTest {
         assertEquals(listOf("Mix.", "Cook."), state.steps)
         assertEquals(12, state.suggestedTimerMinutes)
         assertEquals(0, state.currentStepIndex)
+    }
+
+    @Test
+    fun `a recipe from before the method field still gets its steps from the notes`() = runTest {
+        val repository = FakeRecipeRepository()
+        repository.saveRecipe(RecipeDraft(id = "r1", title = "Pancakes", notes = "Mix.\n\nCook."))
+        val vm = CookRecipeViewModel(handleFor("r1"), repository, newCookTimerRepository())
+
+        val state = vm.uiState.first { it is CookRecipeUiState.Content } as CookRecipeUiState.Content
+        assertEquals(listOf("Mix.", "Cook."), state.steps)
     }
 
     @Test

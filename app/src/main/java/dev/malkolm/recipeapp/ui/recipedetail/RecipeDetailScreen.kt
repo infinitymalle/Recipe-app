@@ -4,6 +4,8 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -54,6 +56,7 @@ import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.domain.model.stepsFrom
 import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
 import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
@@ -149,9 +152,13 @@ fun RecipeDetailContent(
             topBar = {
                 TopAppBar(
                     title = {
+                        // One line: next to three action buttons a long title would otherwise wrap
+                        // mid-word over several lines. The full title is the first card's heading.
                         Text(
                             text = (uiState as? RecipeDetailUiState.Content)?.recipe?.title
-                                ?: stringResource(R.string.app_name)
+                                ?: stringResource(R.string.app_name),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     navigationIcon = {
@@ -243,60 +250,90 @@ private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier:
                 Text(stringResource(R.string.recipe_detail_cook))
             }
         }
+        // Every section sits on a solid card so it stays readable over the blurred recipe photo.
         item {
             val facts = recipeFacts(recipe)
-            if (facts != null) Text(text = facts, style = MaterialTheme.typography.bodyMedium)
-        }
-        if (recipe.tags.isNotEmpty()) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    recipe.tags.forEach { tag ->
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(tag.name) },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
+            SectionCard(title = null) {
+                Text(recipe.title, style = MaterialTheme.typography.headlineSmall)
+                if (facts != null) Text(text = facts, style = MaterialTheme.typography.bodyMedium)
+                if (recipe.tags.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        recipe.tags.forEach { tag -> AssistChip(onClick = {}, label = { Text(tag.name) }) }
                     }
                 }
             }
         }
         if (recipe.ingredients.isNotBlank()) {
             item {
-                Text(stringResource(R.string.recipe_detail_ingredients), style = MaterialTheme.typography.titleSmall)
-            }
-            var nextId = 0
-            items(ingredientItemsFrom(recipe.ingredients) { (nextId++).toString() }) { item ->
-                when (item) {
-                    is IngredientListItem.Heading ->
-                        Text(
-                            item.text,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                SectionCard(title = stringResource(R.string.recipe_detail_ingredients)) {
+                    var nextId = 0
+                    ingredientItemsFrom(recipe.ingredients) { (nextId++).toString() }.forEach { item ->
+                        when (item) {
+                            is IngredientListItem.Heading ->
+                                Text(
+                                    item.text,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
 
-                    is IngredientListItem.Entry -> {
-                        val label = if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
-                        Text(label)
+                            is IngredientListItem.Entry -> {
+                                val label =
+                                    if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val steps = stepsFrom(recipe.method)
+        if (steps.isNotEmpty()) {
+            item {
+                SectionCard(title = stringResource(R.string.recipe_detail_method)) {
+                    steps.forEachIndexed { index, step ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                stringResource(R.string.recipe_detail_step_number, index + 1),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(step)
+                        }
                     }
                 }
             }
         }
         if (recipe.notes.isNotBlank()) {
             item {
-                Column {
-                    Text(stringResource(R.string.recipe_detail_notes), style = MaterialTheme.typography.titleSmall)
+                SectionCard(title = stringResource(R.string.recipe_detail_notes)) {
                     Text(recipe.notes)
                 }
             }
         }
         if (recipe.attachments.isNotEmpty()) {
             item {
-                Text(stringResource(R.string.recipe_detail_attachments), style = MaterialTheme.typography.titleSmall)
+                // A solid label too: it would otherwise sit straight on the photo like the old sections.
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.recipe_detail_attachments),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
             }
             items(recipe.attachments, key = { it.id }) { attachment -> AttachmentRow(attachment) }
+        }
+    }
+}
+
+/** A solid card holding one section of the recipe, with an optional heading. */
+@Composable
+private fun SectionCard(title: String?, content: @Composable ColumnScope.() -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (title != null) Text(title, style = MaterialTheme.typography.titleMedium)
+            content()
         }
     }
 }

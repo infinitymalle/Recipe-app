@@ -53,6 +53,8 @@
     <string name="recipe_attachment_pdf">PDF</string>
 
     <string name="recipe_detail_back">Back</string>
+    <string name="recipe_detail_method">Method</string>
+    <string name="recipe_detail_step_number">%1$d.</string>
     <string name="recipe_detail_edit">Edit</string>
     <string name="recipe_detail_share">Share</string>
     <string name="recipe_detail_share_error">Couldn\'t prepare this recipe for sharing</string>
@@ -69,6 +71,8 @@
     <string name="recipe_detail_cook">Cook recipe</string>
 
     <string name="cook_recipe_step_label">Step %1$d of %2$d</string>
+    <string name="cook_recipe_step_timer_label">Step %1$d</string>
+    <string name="cook_recipe_start_step_timer">⏱ Start %1$d min timer</string>
     <string name="cook_recipe_previous">Previous</string>
     <string name="cook_recipe_next">Next</string>
     <string name="cook_recipe_no_steps">No instructions added for this recipe yet. Add some in Notes.</string>
@@ -89,6 +93,12 @@
     <string name="recipe_edit_field_ingredients">Recipe</string>
     <string name="recipe_edit_field_rating">Rating</string>
     <string name="recipe_edit_field_notes">Notes</string>
+    <string name="recipe_edit_field_method">Method</string>
+    <string name="recipe_edit_add_step">+ Add step</string>
+    <string name="recipe_edit_step_label">Step</string>
+    <string name="recipe_edit_edit_step">Edit step</string>
+    <string name="recipe_edit_step_number">Step %1$d</string>
+    <string name="recipe_edit_move_notes_to_method">Turn notes into method steps</string>
     <string name="recipe_edit_field_tags">Tags (comma separated)</string>
     <string name="recipe_edit_attachments">Attachments</string>
     <string name="recipe_edit_add_text">+ Add text note</string>

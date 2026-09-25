@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.malkolm.recipeapp.domain.model.stepsFrom
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.timer.CookTimerRepository
 import dev.malkolm.recipeapp.timer.RunningCookTimer
@@ -86,7 +87,8 @@ constructor(
                 shell.value =
                     CookRecipeUiState.Content(
                         title = recipe.title,
-                        steps = stepsFrom(recipe.notes),
+                        // Recipes from before the method field kept their steps in the notes.
+                        steps = stepsFrom(recipe.method.ifBlank { recipe.notes }),
                         currentStepIndex = 0,
                         suggestedTimerMinutes = recipe.cookingTimeMinutes
                     )
@@ -120,11 +122,3 @@ private fun RunningCookTimer.toCookTimer() = CookTimer(
     remainingSeconds = remainingSeconds,
     isRunning = isRunning
 )
-
-/** Notes split into steps on blank lines; the whole thing is one step if there are none. */
-private val blankLine = Regex("\n\\s*\n")
-
-fun stepsFrom(notes: String): List<String> = notes
-    .split(blankLine)
-    .map { it.trim() }
-    .filter { it.isNotEmpty() }

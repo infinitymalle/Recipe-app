@@ -28,6 +28,14 @@ val MIGRATION_2_3 =
         }
     }
 
+/** Adds the recipe's `method` (its cooking steps), separate from `notes`. Existing rows start empty. */
+val MIGRATION_3_4 =
+    object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `recipes` ADD COLUMN `method` TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
 /**
  * Every database migration, in order.
  *
@@ -36,4 +44,4 @@ val MIGRATION_2_3 =
  * The app never falls back to deleting the database: her recipes must survive every update.
  * See docs/database.md for the step-by-step.
  */
-val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

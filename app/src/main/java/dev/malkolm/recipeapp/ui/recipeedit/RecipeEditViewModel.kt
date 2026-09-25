@@ -13,6 +13,8 @@ import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.RecipeDraft
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.domain.model.stepsFrom
+import dev.malkolm.recipeapp.domain.model.toMethodText
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import javax.inject.Inject
@@ -36,6 +38,8 @@ sealed interface RecipeEditUiState {
         val title: String = "",
         val titleError: Boolean = false,
         val ingredients: List<IngredientListItem> = emptyList(),
+        /** The method, one entry per step (stored as paragraphs, see `stepsFrom`). */
+        val steps: List<MethodStep> = emptyList(),
         val servings: Int? = null,
         val cookingTimeMinutes: Int? = null,
         val rating: Int? = null,
@@ -48,6 +52,9 @@ sealed interface RecipeEditUiState {
         val saved: Boolean = false
     ) : RecipeEditUiState
 }
+
+/** One step of the method while editing; [id] only keeps list rows stable, it is not stored. */
+data class MethodStep(val id: String, val text: String)
 
 @HiltViewModel
 class RecipeEditViewModel
@@ -152,6 +159,45 @@ constructor(
     /** [direction] is -1 to move the item up a slot, +1 to move it down; a no-op past either end. */
     fun moveIngredientItem(id: String, direction: Int) = updateEditing { state ->
         state.copy(ingredients = state.ingredients.moved(id, direction))
+    }
+
+    fun addStep(text: String) {
+        if (text.isBlank()) return
+        updateEditing { it.copy(steps = it.steps + MethodStep(idGenerator.newId(), text.trim())) }
+    }
+
+    /** Replaces a step's text; clearing it removes the step. */
+    fun updateStep(id: String, text: String) = updateEditing { state ->
+        state.copy(
+            steps =
+                if (text.isBlank()) {
+                    state.steps.filterNot { it.id == id }
+                } else {
+                    state.steps.map { if (it.id == id) it.copy(text = text.trim()) else it }
+                }
+        )
+    }
+
+    fun removeStep(id: String) = updateEditing { state -> state.copy(steps = state.steps.filterNot { it.id == id }) }
+
+    /** [direction] is -1 to move the step up, +1 to move it down; a no-op past either end. */
+    fun moveStep(id: String, direction: Int) = updateEditing { state ->
+        val index = state.steps.indexOfFirst { it.id == id }
+        val target = index + direction
+        if (index < 0 || target !in state.steps.indices) {
+            state
+        } else {
+            state.copy(steps = state.steps.toMutableList().apply { add(target, removeAt(index)) })
+        }
+    }
+
+    /**
+     * For recipes from before the method field, whose steps were written in the notes: turns the
+     * notes' paragraphs into steps and clears the notes.
+     */
+    fun moveNotesToMethod() = updateEditing { state ->
+        val moved = stepsFrom(state.notes).map { MethodStep(idGenerator.newId(), it) }
+        if (moved.isEmpty()) state else state.copy(steps = state.steps + moved, notes = "")
     }
 
     fun setServings(text: String) = updateEditing { it.copy(servings = text.toIntOrNull()?.takeIf { n -> n >= 1 }) }
@@ -289,6 +335,7 @@ constructor(
         isNew = false,
         title = title,
         ingredients = ingredientItemsFrom(ingredients) { idGenerator.newId() },
+        steps = stepsFrom(method).map { MethodStep(idGenerator.newId(), it) },
         servings = servings,
         cookingTimeMinutes = cookingTimeMinutes,
         rating = rating,
@@ -307,6 +354,7 @@ constructor(
         id = recipeId,
         title = title.trim(),
         ingredients = ingredients.toIngredientsText(),
+        method = steps.map { it.text }.toMethodText(),
         servings = servings,
         cookingTimeMinutes = cookingTimeMinutes,
         rating = rating,

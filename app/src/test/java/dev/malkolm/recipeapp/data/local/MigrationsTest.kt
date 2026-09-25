@@ -57,6 +57,31 @@ class MigrationsTest {
         }
     }
 
+    @Test
+    fun `3 to 4 keeps recipes and gives them an empty method`() = runTest {
+        createDatabaseAtVersion(3) { db ->
+            db.execSQL(
+                "INSERT INTO recipes (id, title, ingredients, notes, createdAt, updatedAt) " +
+                    "VALUES ('r1', 'Pancakes', 'Flour (2 cups)', 'Mix.', 1000, 1000)"
+            )
+        }
+
+        val database =
+            Room
+                .databaseBuilder(context, RecipeDatabase::class.java, dbName)
+                .addMigrations(*ALL_MIGRATIONS)
+                .allowMainThreadQueries()
+                .build()
+        try {
+            val recipe = database.recipeDao().observeDetails("r1").first()?.recipe
+            assertEquals("Pancakes", recipe?.title)
+            assertEquals("Mix.", recipe?.notes)
+            assertEquals("", recipe?.method)
+        } finally {
+            database.close()
+        }
+    }
+
     /** Creates [dbName] with the tables of committed schema [version], then lets [fill] add rows. */
     private fun createDatabaseAtVersion(version: Int, fill: (SupportSQLiteDatabase) -> Unit) {
         val schema =

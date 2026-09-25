@@ -21,6 +21,8 @@ private fun requireValidNumbers(servings: Int?, cookingTimeMinutes: Int?, rating
 /**
  * A saved recipe as read from storage.
  *
+ * [method] holds the cooking steps, one per paragraph (see `stepsFrom`); [notes] is for the
+ * cook's own remarks. Older recipes may still have their steps in [notes] (before [method] existed).
  * [ingredients] is free text for now (one ingredient per line). A structured ingredient list can
  * be added later with a database migration without changing the rest of this class.
  * Numbers are `null` when unknown; [rating] `null` means "not rated yet".
@@ -29,6 +31,7 @@ data class Recipe(
     val id: String,
     val title: String,
     val ingredients: String,
+    val method: String = "",
     val servings: Int?,
     val cookingTimeMinutes: Int?,
     val rating: Int?,
@@ -47,6 +50,7 @@ data class Recipe(
         id = id,
         title = title,
         ingredients = ingredients,
+        method = method,
         servings = servings,
         cookingTimeMinutes = cookingTimeMinutes,
         rating = rating,
@@ -67,6 +71,7 @@ data class RecipeDraft(
     val id: String,
     val title: String,
     val ingredients: String = "",
+    val method: String = "",
     val servings: Int? = null,
     val cookingTimeMinutes: Int? = null,
     val rating: Int? = null,

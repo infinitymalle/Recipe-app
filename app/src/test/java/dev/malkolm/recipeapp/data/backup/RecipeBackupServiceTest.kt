@@ -40,6 +40,7 @@ class RecipeBackupServiceTest {
                 id = "r1",
                 title = "Pancakes",
                 ingredients = "Flour (2 cups)",
+                method = "Mix.\n\nFry.",
                 servings = 4,
                 tags = listOf(Tag.of("t1", "Breakfast")),
                 attachments = listOf(Attachment.Image(id = "a1", filePath = "recipes/r1/photo.jpg"))
@@ -55,6 +56,7 @@ class RecipeBackupServiceTest {
 
         val imported = destinationRepo.observeRecipe("r1").first()
         assertEquals("Pancakes", imported?.title)
+        assertEquals("Mix.\n\nFry.", imported?.method)
         assertEquals(4, imported?.servings)
         assertEquals(listOf("Breakfast"), imported?.tags?.map { it.name })
         val attachment = imported?.attachments?.single() as Attachment.Image

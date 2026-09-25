@@ -7,7 +7,7 @@ import dev.malkolm.recipeapp.domain.model.Tag
 /**
  * Built-in example recipes, added from Settings. Written in the app's own formats:
  * - ingredients: one per line, "Name (amount)", with "Heading:" lines grouping them (see IngredientListItem)
- * - notes: the method, one step per paragraph; cook mode splits steps on blank lines
+ * - method: one step per paragraph (see stepsFrom); cook mode offers timers for the times in it
  * - tips: a text attachment
  *
  * Ids are fixed so adding the examples twice updates the same recipes instead of duplicating them.
@@ -43,14 +43,14 @@ object ExampleRecipes {
             Salt (1/2 tsp)
             Eggs (2)
             Milk (4 dl)
-            Butter, melted (50 g)
+            Butter (melted) (50 g)
             Vanilla extract (1 tsp)
             For the pan and serving:
             Butter for frying (1 tbsp)
             Maple syrup
             Fresh berries (200 g)
             """.trimIndent(),
-        notes =
+        method =
             """
             Whisk the flour, baking powder, sugar and salt together in a large bowl. Make a well in the middle.
 
@@ -92,13 +92,13 @@ object ExampleRecipes {
             Salt (1/2 tsp)
             Milk (6 dl)
             Eggs (3)
-            Butter, melted (2 tbsp)
+            Butter (melted) (2 tbsp)
             For the pan and serving:
             Butter for frying
             Lingonberry or strawberry jam
             Whipped cream (2 dl cream)
             """.trimIndent(),
-        notes =
+        method =
             """
             Whisk the flour and salt with half of the milk into a thick, smooth batter. Starting with only some of the milk is what keeps it free of lumps.
 
@@ -141,7 +141,7 @@ object ExampleRecipes {
             Ground cardamom (2 tsp)
             Plain flour (about 13 dl)
             Filling:
-            Butter, soft (150 g)
+            Butter (softened) (150 g)
             Sugar (1 dl)
             Ground cinnamon (1 1/2 tbsp)
             Topping:
@@ -149,7 +149,7 @@ object ExampleRecipes {
             Water (1 tbsp)
             Pearl sugar
             """.trimIndent(),
-        notes =
+        method =
             """
             Melt the butter in a saucepan, add the milk and warm it to finger temperature, about 37 °C. Any hotter kills the yeast.
 
@@ -212,7 +212,7 @@ object ExampleRecipes {
             Spaghetti or tagliatelle (500 g)
             Parmesan, grated (50 g)
             """.trimIndent(),
-        notes =
+        method =
             """
             Chop the onion, carrot and celery very finely: this base (soffritto) should almost melt into the sauce. Finely chop the garlic.
 
@@ -270,7 +270,7 @@ object ExampleRecipes {
             To serve:
             Jasmine rice (3 dl)
             """.trimIndent(),
-        notes =
+        method =
             """
             Rinse the rice and start cooking it according to the packet. Slice the chicken into bite-sized pieces, cut the beans into short lengths, slice the pepper and chilli.
 
@@ -326,7 +326,7 @@ object ExampleRecipes {
             To serve:
             Crusty bread
             """.trimIndent(),
-        notes =
+        method =
             """
             Heat the oven to 200 °C.
 

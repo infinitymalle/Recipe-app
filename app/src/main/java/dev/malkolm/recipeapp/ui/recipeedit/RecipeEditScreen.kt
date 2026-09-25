@@ -105,6 +105,11 @@ fun RecipeEditScreen(onSaved: () -> Unit, onCancel: () -> Unit, viewModel: Recip
         onAddIngredientHeading = viewModel::addIngredientHeading,
         onRemoveIngredientItem = viewModel::removeIngredientItem,
         onMoveIngredientItem = viewModel::moveIngredientItem,
+        onAddStep = viewModel::addStep,
+        onUpdateStep = viewModel::updateStep,
+        onRemoveStep = viewModel::removeStep,
+        onMoveStep = viewModel::moveStep,
+        onMoveNotesToMethod = viewModel::moveNotesToMethod,
         onSetServings = viewModel::setServings,
         onClearServings = viewModel::clearServings,
         onSetCookingTime = viewModel::setCookingTime,
@@ -135,6 +140,11 @@ fun RecipeEditContent(
     onAddIngredientHeading: (String) -> Unit,
     onRemoveIngredientItem: (String) -> Unit,
     onMoveIngredientItem: (id: String, direction: Int) -> Unit,
+    onAddStep: (String) -> Unit,
+    onUpdateStep: (id: String, text: String) -> Unit,
+    onRemoveStep: (String) -> Unit,
+    onMoveStep: (id: String, direction: Int) -> Unit,
+    onMoveNotesToMethod: () -> Unit,
     onSetServings: (String) -> Unit,
     onClearServings: () -> Unit,
     onSetCookingTime: (String) -> Unit,
@@ -210,6 +220,11 @@ fun RecipeEditContent(
                     onAddIngredientHeading = onAddIngredientHeading,
                     onRemoveIngredientItem = onRemoveIngredientItem,
                     onMoveIngredientItem = onMoveIngredientItem,
+                    onAddStep = onAddStep,
+                    onUpdateStep = onUpdateStep,
+                    onRemoveStep = onRemoveStep,
+                    onMoveStep = onMoveStep,
+                    onMoveNotesToMethod = onMoveNotesToMethod,
                     onSetServings = onSetServings,
                     onClearServings = onClearServings,
                     onSetCookingTime = onSetCookingTime,
@@ -239,6 +254,11 @@ private fun RecipeEditForm(
     onAddIngredientHeading: (String) -> Unit,
     onRemoveIngredientItem: (String) -> Unit,
     onMoveIngredientItem: (id: String, direction: Int) -> Unit,
+    onAddStep: (String) -> Unit,
+    onUpdateStep: (id: String, text: String) -> Unit,
+    onRemoveStep: (String) -> Unit,
+    onMoveStep: (id: String, direction: Int) -> Unit,
+    onMoveNotesToMethod: () -> Unit,
     onSetServings: (String) -> Unit,
     onClearServings: () -> Unit,
     onSetCookingTime: (String) -> Unit,
@@ -258,6 +278,8 @@ private fun RecipeEditForm(
 ) {
     var showAddIngredient by remember { mutableStateOf(false) }
     var showAddHeading by remember { mutableStateOf(false) }
+    var showAddStep by remember { mutableStateOf(false) }
+    var editingStep by remember { mutableStateOf<MethodStep?>(null) }
     // Drag-to-reorder for the ingredient list: dragOffsetPx tracks how far the held row has moved
     // from its last swap; crossing half its own height triggers the same swap moveIngredientItem
     // already uses for the up/down buttons, then the offset resets relative to the new position.
@@ -401,6 +423,34 @@ private fun RecipeEditForm(
         }
 
         item {
+            Text(stringResource(R.string.recipe_edit_field_method), style = MaterialTheme.typography.titleSmall)
+        }
+        itemsIndexed(state.steps, key = { _, step -> step.id }) { index, step ->
+            MethodStepRow(
+                number = index + 1,
+                text = step.text,
+                canMoveUp = index > 0,
+                canMoveDown = index < state.steps.lastIndex,
+                onEdit = { editingStep = step },
+                onMove = { direction -> onMoveStep(step.id, direction) },
+                onRemove = { onRemoveStep(step.id) }
+            )
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showAddStep = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.recipe_edit_add_step))
+                }
+                // Older recipes kept their steps in the notes, before the method field existed.
+                if (state.steps.isEmpty() && state.notes.isNotBlank()) {
+                    TextButton(onClick = onMoveNotesToMethod, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.recipe_edit_move_notes_to_method))
+                    }
+                }
+            }
+        }
+
+        item {
             ValueOrAddButtonRow(
                 value = state.servings,
                 addLabel = stringResource(R.string.recipe_edit_add_servings),
@@ -498,6 +548,30 @@ private fun RecipeEditForm(
             onAdd = { text ->
                 onAddIngredientHeading(text)
                 showAddHeading = false
+            }
+        )
+    }
+    if (showAddStep) {
+        StepDialog(
+            title = stringResource(R.string.recipe_edit_add_step),
+            initialText = "",
+            confirmLabel = stringResource(R.string.recipe_edit_dialog_add),
+            onDismiss = { showAddStep = false },
+            onConfirm = { text ->
+                onAddStep(text)
+                showAddStep = false
+            }
+        )
+    }
+    editingStep?.let { step ->
+        StepDialog(
+            title = stringResource(R.string.recipe_edit_edit_step),
+            initialText = step.text,
+            confirmLabel = stringResource(R.string.recipe_edit_save),
+            onDismiss = { editingStep = null },
+            onConfirm = { text ->
+                onUpdateStep(step.id, text)
+                editingStep = null
             }
         )
     }
@@ -713,6 +787,62 @@ private fun IngredientListRow(
     }
 }
 
+/** A numbered method step; tap the text to edit it. */
+@Composable
+private fun MethodStepRow(
+    number: Int,
+    text: String,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onEdit: () -> Unit,
+    onMove: (direction: Int) -> Unit,
+    onRemove: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(12.dp)) {
+            Text(stringResource(R.string.recipe_edit_step_number, number), style = MaterialTheme.typography.labelLarge)
+            Text(text)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (canMoveUp) {
+                    TextButton(onClick = { onMove(-1) }) { Text(stringResource(R.string.recipe_edit_move_up)) }
+                }
+                if (canMoveDown) {
+                    TextButton(onClick = { onMove(1) }) { Text(stringResource(R.string.recipe_edit_move_down)) }
+                }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.recipe_edit_remove_attachment)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepDialog(
+    title: String,
+    initialText: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialText) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.recipe_edit_step_label)) },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(confirmLabel) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_edit_dialog_cancel)) } }
+    )
+}
+
 @Composable
 private fun AttachmentEditRow(attachment: Attachment, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -894,6 +1024,11 @@ private fun RecipeEditContentPreview() {
             onAddIngredientHeading = {},
             onRemoveIngredientItem = {},
             onMoveIngredientItem = { _, _ -> },
+            onAddStep = {},
+            onUpdateStep = { _, _ -> },
+            onRemoveStep = {},
+            onMoveStep = { _, _ -> },
+            onMoveNotesToMethod = {},
             onSetServings = {},
             onClearServings = {},
             onSetCookingTime = {},

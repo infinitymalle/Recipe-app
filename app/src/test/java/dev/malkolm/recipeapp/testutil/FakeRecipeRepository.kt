@@ -46,6 +46,7 @@ class FakeRecipeRepository(private val clock: Clock = Clock.systemUTC()) : Recip
                             cookingTimeMinutes = draft.cookingTimeMinutes,
                             rating = draft.rating,
                             notes = draft.notes,
+                            method = draft.method,
                             tags = draft.tags,
                             attachments = draft.attachments,
                             createdAt = existing?.createdAt ?: now,

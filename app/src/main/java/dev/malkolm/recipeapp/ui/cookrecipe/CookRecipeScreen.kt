@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +45,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.malkolm.recipeapp.R
+import dev.malkolm.recipeapp.domain.model.durationsIn
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 
 /** Stateful entry point: connects the ViewModel to the stateless [CookRecipeContent]. */
@@ -124,7 +127,7 @@ fun CookRecipeContent(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    item { StepCard(uiState, onPreviousStep, onNextStep) }
+                    item { StepCard(uiState, onPreviousStep, onNextStep, onAddTimer) }
                     item {
                         Text(
                             stringResource(R.string.cook_recipe_timers_title),
@@ -162,7 +165,12 @@ fun CookRecipeContent(
 }
 
 @Composable
-private fun StepCard(state: CookRecipeUiState.Content, onPreviousStep: () -> Unit, onNextStep: () -> Unit) {
+private fun StepCard(
+    state: CookRecipeUiState.Content,
+    onPreviousStep: () -> Unit,
+    onNextStep: () -> Unit,
+    onAddTimer: (minutes: Int, label: String) -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (state.steps.isEmpty()) {
@@ -176,7 +184,23 @@ private fun StepCard(state: CookRecipeUiState.Content, onPreviousStep: () -> Uni
                     ),
                     style = MaterialTheme.typography.labelLarge
                 )
-                Text(state.steps[state.currentStepIndex], style = MaterialTheme.typography.bodyLarge)
+                val step = state.steps[state.currentStepIndex]
+                Text(step, style = MaterialTheme.typography.bodyLarge)
+                // One tap starts a timer for each time the step mentions ("Bake for 8 to 10 minutes").
+                val durations = durationsIn(step)
+                if (durations.isNotEmpty()) {
+                    val stepLabel = stringResource(R.string.cook_recipe_step_timer_label, state.currentStepIndex + 1)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        durations.forEach { duration ->
+                            AssistChip(
+                                onClick = { onAddTimer(duration.minutes, stepLabel) },
+                                label = {
+                                    Text(stringResource(R.string.cook_recipe_start_step_timer, duration.minutes))
+                                }
+                            )
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onPreviousStep, enabled = state.currentStepIndex > 0) {
                         Text(stringResource(R.string.cook_recipe_previous))

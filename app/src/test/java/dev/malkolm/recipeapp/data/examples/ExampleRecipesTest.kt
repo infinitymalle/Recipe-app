@@ -1,8 +1,8 @@
 package dev.malkolm.recipeapp.data.examples
 
+import dev.malkolm.recipeapp.domain.model.stepsFrom
 import dev.malkolm.recipeapp.testutil.FakeRecipeRepository
 import dev.malkolm.recipeapp.testutil.SequentialIdGenerator
-import dev.malkolm.recipeapp.ui.cookrecipe.stepsFrom
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
 import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
 import dev.malkolm.recipeapp.ui.recipeedit.toIngredientsText
@@ -19,7 +19,7 @@ class ExampleRecipesTest {
         for (recipe in examples) {
             assertTrue(recipe.tags.any { it.name == ExampleRecipes.TAG }, recipe.title)
             assertTrue(recipe.ingredients.isNotBlank(), recipe.title)
-            assertTrue(stepsFrom(recipe.notes).size >= 3, recipe.title)
+            assertTrue(stepsFrom(recipe.method).size >= 3, recipe.title)
             assertTrue(recipe.attachments.isNotEmpty(), recipe.title)
         }
     }

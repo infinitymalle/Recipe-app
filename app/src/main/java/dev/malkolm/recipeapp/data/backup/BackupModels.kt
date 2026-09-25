@@ -18,6 +18,8 @@ data class BackupRecipe(
     val id: String,
     val title: String,
     val ingredients: String,
+    /** Missing in backups made before the method field existed, hence the default. */
+    val method: String = "",
     val servings: Int? = null,
     val cookingTimeMinutes: Int? = null,
     val rating: Int? = null,

@@ -19,13 +19,24 @@ sealed interface IngredientListItem {
 // "Flour" for one without, "Mashed potatoes:" for a heading - and decoded back the same way when
 // an existing recipe is opened to edit. This also keeps the plain-text column readable as-is on
 // the detail screen (a trailing colon reads as a section title there too), with no schema change.
-private val amountSuffix = Regex("""^(.*) \(([^()]*)\)$""")
+//
+// Brackets are allowed in names and amounts: the amount is always the LAST bracket group on the
+// line (it may itself contain one level of brackets, "Flour (2 cups (250 g))"). An entry without
+// an amount whose name would otherwise be misread - it ends in ")" like "Butter (softened)", or in
+// ":" like a heading - gets an empty "()" appended, which decodes back to "no amount".
+private val amountSuffix = Regex("""^(.*) \(((?:[^()]|\([^()]*\))*)\)$""")
 
 fun List<IngredientListItem>.toIngredientsText(): String = joinToString("\n") { item ->
     when (item) {
         is IngredientListItem.Heading -> "${item.text}:"
-        is IngredientListItem.Entry -> if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
+        is IngredientListItem.Entry -> item.toLine()
     }
+}
+
+private fun IngredientListItem.Entry.toLine(): String = when {
+    !amount.isNullOrBlank() -> "$name ($amount)"
+    name.endsWith(")") || name.endsWith(":") -> "$name ()"
+    else -> name
 }
 
 fun ingredientItemsFrom(text: String, nextId: () -> String): List<IngredientListItem> = text
@@ -40,7 +51,8 @@ fun ingredientItemsFrom(text: String, nextId: () -> String): List<IngredientList
             else -> {
                 val match = amountSuffix.matchEntire(line)
                 if (match != null) {
-                    IngredientListItem.Entry(id = nextId(), name = match.groupValues[1], amount = match.groupValues[2])
+                    val amount = match.groupValues[2].trim().ifEmpty { null }
+                    IngredientListItem.Entry(id = nextId(), name = match.groupValues[1], amount = amount)
                 } else {
                     IngredientListItem.Entry(id = nextId(), name = line)
                 }

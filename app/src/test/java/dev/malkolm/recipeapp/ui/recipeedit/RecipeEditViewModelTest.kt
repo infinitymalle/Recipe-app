@@ -271,6 +271,48 @@ class RecipeEditViewModelTest {
     }
 
     @Test
+    fun `method steps are added, edited, reordered, removed and saved as paragraphs`() = runTest {
+        val repository = FakeRecipeRepository()
+        val vm = viewModel(newRecipeHandle(), repository)
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+        vm.updateTitle("Pancakes")
+
+        vm.addStep("Mix.")
+        vm.addStep("  Fry.  ")
+        vm.addStep("Serve.")
+        var steps = (vm.uiState.first() as RecipeEditUiState.Editing).steps
+        vm.moveStep(steps[2].id, -1)
+        vm.updateStep(steps[0].id, "Mix well.")
+        vm.removeStep(steps[1].id)
+        vm.addStep("   ")
+
+        steps = (vm.uiState.first() as RecipeEditUiState.Editing).steps
+        assertEquals(listOf("Mix well.", "Serve."), steps.map { it.text })
+
+        vm.save()
+        val state = vm.uiState.first { (it as RecipeEditUiState.Editing).saved } as RecipeEditUiState.Editing
+        assertEquals("Mix well.\n\nServe.", repository.observeRecipe(state.recipeId).first()?.method)
+
+        val reopened = viewModel(editHandle(state.recipeId), repository)
+        val reloaded = reopened.uiState.first { it is RecipeEditUiState.Editing } as RecipeEditUiState.Editing
+        assertEquals(listOf("Mix well.", "Serve."), reloaded.steps.map { it.text })
+    }
+
+    @Test
+    fun `steps kept in the notes of an older recipe can be turned into method steps`() = runTest {
+        val repository = FakeRecipeRepository()
+        repository.saveRecipe(RecipeDraft(id = "r1", title = "Pancakes", notes = "Mix.\n\nFry."))
+        val vm = viewModel(editHandle("r1"), repository)
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.moveNotesToMethod()
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        assertEquals(listOf("Mix.", "Fry."), state.steps.map { it.text })
+        assertEquals("", state.notes)
+    }
+
+    @Test
     fun `changing the cover picture replaces the old one instead of keeping both`() = runTest {
         val vm = viewModel(newRecipeHandle())
         vm.uiState.first { it is RecipeEditUiState.Editing }
