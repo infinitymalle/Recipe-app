@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -42,6 +43,13 @@ constructor(
     tagRepository: TagRepository
 ) : ViewModel() {
     private val searchQuery = MutableStateFlow("")
+
+    /**
+     * What the search field shows. It must update the moment the user types, so it is not read
+     * from [uiState]: that only catches up once the database has answered the new query, and a
+     * text field fed a lagging value drops or reorders keystrokes typed in between.
+     */
+    val searchText: StateFlow<String> = searchQuery.asStateFlow()
     private val selectedTagId = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<RecipeListUiState> =

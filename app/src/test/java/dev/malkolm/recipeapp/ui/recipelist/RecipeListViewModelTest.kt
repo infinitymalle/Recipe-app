@@ -58,6 +58,17 @@ class RecipeListViewModelTest {
     }
 
     @Test
+    fun `search text updates immediately, before the filtered results arrive`() = runTest {
+        val viewModel = RecipeListViewModel(FakeRecipeRepository(), FakeTagRepository())
+
+        viewModel.updateSearchQuery("p")
+        viewModel.updateSearchQuery("pa")
+
+        // Read without waiting for uiState: the field must never be handed a stale query.
+        assertEquals("pa", viewModel.searchText.value)
+    }
+
+    @Test
     fun `selecting a tag filters recipes and selecting it again clears the filter`() = runTest {
         val breakfast = Tag.of("t1", "Breakfast")
         val clock = MutableClock(Instant.parse("2026-01-01T10:00:00Z"))

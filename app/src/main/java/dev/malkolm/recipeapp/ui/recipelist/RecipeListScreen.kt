@@ -61,6 +61,7 @@ fun RecipeListScreen(
     viewModel: RecipeListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val searchText by viewModel.searchText.collectAsStateWithLifecycle()
 
     // Chosen once, the first time recipes with a picture are seen, and kept from then on so it
     // does not change while searching/filtering or recomposing - only a fresh app open picks again.
@@ -74,6 +75,7 @@ fun RecipeListScreen(
 
     RecipeListContent(
         uiState = uiState,
+        searchText = searchText,
         backgroundImagePath = backgroundImagePath,
         onOpenRecipe = onOpenRecipe,
         onAddRecipe = onAddRecipe,
@@ -89,6 +91,7 @@ fun RecipeListScreen(
 @Composable
 fun RecipeListContent(
     uiState: RecipeListUiState,
+    searchText: String,
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -147,7 +150,7 @@ fun RecipeListContent(
                 is RecipeListUiState.Content -> {
                     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                         OutlinedTextField(
-                            value = uiState.searchQuery,
+                            value = searchText,
                             onValueChange = onSearchQueryChange,
                             label = { Text(stringResource(R.string.recipe_list_search_label)) },
                             singleLine = true,
@@ -242,6 +245,7 @@ private fun RecipeListContentEmptyPreview() {
                     selectedTagId = null,
                     searchQuery = ""
                 ),
+            searchText = "",
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
@@ -275,6 +279,7 @@ private fun RecipeListContentPreview() {
                     selectedTagId = "t1",
                     searchQuery = ""
                 ),
+            searchText = "",
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
