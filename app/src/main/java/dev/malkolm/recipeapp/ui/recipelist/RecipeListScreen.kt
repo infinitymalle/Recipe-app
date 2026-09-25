@@ -1,6 +1,5 @@
 package dev.malkolm.recipeapp.ui.recipelist
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -47,6 +45,7 @@ import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.RecipeSummary
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.io.File
 import java.time.Instant
@@ -63,9 +62,10 @@ fun RecipeListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchText by viewModel.searchText.collectAsStateWithLifecycle()
 
-    // Chosen once, the first time recipes with a picture are seen, and kept from then on so it
-    // does not change while searching/filtering or recomposing - only a fresh app open picks again.
-    var backgroundImagePath by rememberSaveable { mutableStateOf<String?>(null) }
+    // Picked the first time recipes with a picture are seen, then kept while searching/filtering.
+    // Plain remember (not rememberSaveable) on purpose: this screen leaves composition while
+    // another one is open, so coming back to the list picks a new random picture every time.
+    var backgroundImagePath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState) {
         if (backgroundImagePath == null) {
             val content = uiState as? RecipeListUiState.Content
@@ -101,17 +101,7 @@ fun RecipeListContent(
     modifier: Modifier = Modifier,
     backgroundImagePath: String? = null
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        if (backgroundImagePath != null) {
-            val context = LocalContext.current
-            AsyncImage(
-                model = File(context.filesDir, backgroundImagePath),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().blur(24.dp)
-            )
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f)))
-        }
+    BlurredImageBackground(imagePath = backgroundImagePath, modifier = modifier) {
         Scaffold(
             containerColor = if (backgroundImagePath !=
                 null

@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -52,6 +53,7 @@ import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.Attachment
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.Tag
+import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
 import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
@@ -131,55 +133,64 @@ fun RecipeDetailContent(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val backgroundImagePath = (uiState as? RecipeDetailUiState.Content)?.recipe?.picturePath()
 
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = (uiState as? RecipeDetailUiState.Content)?.recipe?.title
-                            ?: stringResource(R.string.app_name)
-                    )
-                },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
-                },
-                actions = {
-                    if (uiState is RecipeDetailUiState.Content) {
-                        TextButton(onClick = { onEditRecipe(uiState.recipe.id) }) {
-                            Text(stringResource(R.string.recipe_detail_edit))
-                        }
-                        TextButton(onClick = onShare) {
-                            Text(stringResource(R.string.recipe_detail_share))
-                        }
-                        TextButton(onClick = { showDeleteConfirm = true }) {
-                            Text(stringResource(R.string.recipe_detail_delete))
+    BlurredImageBackground(imagePath = backgroundImagePath, modifier = modifier) {
+        Scaffold(
+            containerColor = if (backgroundImagePath !=
+                null
+            ) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.background
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = (uiState as? RecipeDetailUiState.Content)?.recipe?.title
+                                ?: stringResource(R.string.app_name)
+                        )
+                    },
+                    navigationIcon = {
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
+                    },
+                    actions = {
+                        if (uiState is RecipeDetailUiState.Content) {
+                            TextButton(onClick = { onEditRecipe(uiState.recipe.id) }) {
+                                Text(stringResource(R.string.recipe_detail_edit))
+                            }
+                            TextButton(onClick = onShare) {
+                                Text(stringResource(R.string.recipe_detail_share))
+                            }
+                            TextButton(onClick = { showDeleteConfirm = true }) {
+                                Text(stringResource(R.string.recipe_detail_delete))
+                            }
                         }
                     }
-                }
-            )
-        }
-    ) { innerPadding ->
-        when (uiState) {
-            RecipeDetailUiState.Loading -> Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
-
-            RecipeDetailUiState.NotFound -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.recipe_detail_not_found))
-                }
-            }
-
-            is RecipeDetailUiState.Content -> {
-                RecipeDetailBody(
-                    recipe = uiState.recipe,
-                    onCookRecipe = { onCookRecipe(uiState.recipe.id) },
-                    modifier = Modifier.padding(innerPadding)
                 )
+            }
+        ) { innerPadding ->
+            when (uiState) {
+                RecipeDetailUiState.Loading -> Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
+
+                RecipeDetailUiState.NotFound -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(innerPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.recipe_detail_not_found))
+                    }
+                }
+
+                is RecipeDetailUiState.Content -> {
+                    RecipeDetailBody(
+                        recipe = uiState.recipe,
+                        onCookRecipe = { onCookRecipe(uiState.recipe.id) },
+                        modifier = Modifier.padding(innerPadding)
+                    )
+                }
             }
         }
     }
@@ -203,6 +214,19 @@ fun RecipeDetailContent(
                 }
             }
         )
+    }
+}
+
+/**
+ * The recipe's own picture, the same one the list shows as its thumbnail: the first attachment
+ * with a picture (a photo's file, or a link/PDF's saved thumbnail), or `null` if it has none.
+ */
+private fun Recipe.picturePath(): String? = attachments.firstNotNullOfOrNull { attachment ->
+    when (attachment) {
+        is Attachment.Image -> attachment.filePath
+        is Attachment.Link -> attachment.thumbnailPath
+        is Attachment.Pdf -> attachment.thumbnailPath
+        is Attachment.Text -> null
     }
 }
 
