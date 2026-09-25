@@ -31,6 +31,8 @@
     <string name="settings_import_success_prefix">Imported</string>
     <string name="settings_backup_error">Backup failed</string>
 
+    <string name="import_recipe_failed">Couldn\'t import that recipe. The file may be damaged or not a recipe export.</string>
+
     <plurals name="recipe_servings_short">
         <item quantity="one">%1$d serving</item>
         <item quantity="other">%1$d servings</item>
@@ -41,6 +43,8 @@
 
     <string name="recipe_detail_back">Back</string>
     <string name="recipe_detail_edit">Edit</string>
+    <string name="recipe_detail_share">Share</string>
+    <string name="recipe_detail_share_error">Couldn\'t prepare this recipe for sharing</string>
     <string name="recipe_detail_delete">Delete</string>
     <string name="recipe_detail_delete_confirm_title">Delete recipe?</string>
     <string name="recipe_detail_delete_confirm_message">This recipe will be removed from your list.</string>

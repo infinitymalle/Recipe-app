@@ -3,6 +3,7 @@ package dev.malkolm.recipeapp
 import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.malkolm.recipeapp.ui.navigation.ImportRecipeRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,5 +52,29 @@ class MainActivityTest {
             }
 
         assertNull(shareIntentRoute(intent))
+    }
+
+    @Test
+    fun `sharing a recipe zip opens the import screen with it`() {
+        val uri = Uri.parse("content://dev.malkolm.recipeapp.fileprovider/shared/pancakes.recipe.zip")
+        val intent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "application/zip"
+                putExtra(Intent.EXTRA_STREAM, uri)
+            }
+
+        assertEquals(ImportRecipeRoute(uri = uri.toString()), shareIntentRoute(intent))
+    }
+
+    @Test
+    fun `sharing a recipe file labeled as octet-stream also opens the import screen`() {
+        val uri = Uri.parse("content://dev.malkolm.recipeapp.fileprovider/shared/pancakes.recipe.zip")
+        val intent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+            }
+
+        assertEquals(ImportRecipeRoute(uri = uri.toString()), shareIntentRoute(intent))
     }
 }

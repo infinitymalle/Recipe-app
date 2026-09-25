@@ -13,6 +13,7 @@ import androidx.core.content.IntentCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.malkolm.recipeapp.domain.model.ThemeMode
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
+import dev.malkolm.recipeapp.ui.navigation.ImportRecipeRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeListRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeNavHost
@@ -46,19 +47,24 @@ class MainActivity : ComponentActivity() {
 
 /**
  * Turns an incoming share-sheet [Intent] ("Share to Recipe app", see the `SEND` filters in
- * AndroidManifest.xml) into the recipe-edit route to open, pre-filled with what was shared.
- * `null` for anything else (a normal launch from the home screen).
+ * AndroidManifest.xml) into the route to open: the recipe-edit screen pre-filled with a shared
+ * link/photo, or (for a `.recipe.zip` made by `RecipeBackupService.exportForSharing`) the
+ * import screen. `null` for anything else (a normal launch from the home screen).
  */
-fun shareIntentRoute(intent: Intent): RecipeEditRoute? {
+fun shareIntentRoute(intent: Intent): Any? {
     if (intent.action != Intent.ACTION_SEND) return null
     val type = intent.type.orEmpty()
-    val sharedImageUri =
-        if (type.startsWith("image/")) {
-            IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.toString()
-        } else {
-            null
-        }
-    val sharedText = if (type == "text/plain") intent.getStringExtra(Intent.EXTRA_TEXT) else null
-    if (sharedImageUri == null && sharedText.isNullOrBlank()) return null
-    return RecipeEditRoute(sharedText = sharedText, sharedImageUri = sharedImageUri)
+
+    if (type == "text/plain") {
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        return if (text.isNullOrBlank()) null else RecipeEditRoute(sharedText = text)
+    }
+
+    val streamUri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.toString()
+        ?: return null
+    return when {
+        type.startsWith("image/") -> RecipeEditRoute(sharedImageUri = streamUri)
+        type == "application/zip" || type == "application/octet-stream" -> ImportRecipeRoute(uri = streamUri)
+        else -> null
+    }
 }

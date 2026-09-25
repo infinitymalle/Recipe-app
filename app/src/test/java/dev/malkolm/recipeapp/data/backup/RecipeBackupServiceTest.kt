@@ -12,6 +12,7 @@ import dev.malkolm.recipeapp.testutil.SequentialIdGenerator
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -69,6 +70,30 @@ class RecipeBackupServiceTest {
         RecipeBackupService(context, destinationRepo, SequentialIdGenerator()).import(zipUri)
 
         assertEquals("Plain toast", destinationRepo.observeRecipe("r1").first()?.title)
+    }
+
+    @Test
+    fun `exportForSharing then importShared round-trips a single recipe`() = runTest {
+        val sourceRepo = FakeRecipeRepository()
+        val exportService = RecipeBackupService(context, sourceRepo, SequentialIdGenerator())
+        sourceRepo.saveRecipe(RecipeDraft(id = "r1", title = "Pancakes", ingredients = "Flour (2 cups)"))
+
+        val sharedFile = exportService.exportForSharing("r1")
+        assertNotNull(sharedFile)
+
+        val destinationRepo = FakeRecipeRepository()
+        val importService = RecipeBackupService(context, destinationRepo, SequentialIdGenerator())
+        val importedId = importService.importShared(Uri.fromFile(sharedFile))
+
+        assertEquals("r1", importedId)
+        assertEquals("Pancakes", destinationRepo.observeRecipe("r1").first()?.title)
+    }
+
+    @Test
+    fun `exportForSharing returns null for a recipe that does not exist`() = runTest {
+        val service = RecipeBackupService(context, FakeRecipeRepository(), SequentialIdGenerator())
+
+        assertEquals(null, service.exportForSharing("missing"))
     }
 
     @Test

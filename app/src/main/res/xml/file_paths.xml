@@ -2,4 +2,6 @@
 <!-- Exposes app/src/main/java/.../data/RecipeImageStorage.kt's "recipes/" folder to the camera app. -->
 <paths>
     <files-path name="recipes" path="recipes/" />
+    <!-- Exposes RecipeBackupService's single-recipe share files to whatever app the share sheet opens. -->
+    <cache-path name="shared" path="shared/" />
 </paths>

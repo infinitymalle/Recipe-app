@@ -15,6 +15,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -56,16 +57,46 @@ constructor(
 
     /** Reads every recipe from [source] and saves it. Returns how many were read. */
     suspend fun import(source: Uri): Int = withContext(Dispatchers.IO) {
-        val input = context.contentResolver.openInputStream(source) ?: error("Could not open $source")
-        val manifest =
-            input.use { stream ->
-                ZipInputStream(stream).use { zip -> zip.extractFilesAndReadManifest() }
-            } ?: error("Backup file has no manifest")
-
+        val manifest = readManifest(source) ?: error("Backup file has no manifest")
         for (recipe in manifest.recipes) {
             recipeRepository.saveRecipe(recipe.toDraft())
         }
         manifest.recipes.size
+    }
+
+    /**
+     * Writes one recipe to a cache file, ready to be shared. Same on-disk format as [export],
+     * just with a single recipe, so [import] or [importShared] can read it back. The caller turns
+     * this into a `content://` [Uri] (via `FileProvider`) to put in an `ACTION_SEND` intent - kept
+     * out of this class since `FileProvider` needs a real Android provider registry to resolve,
+     * which isn't available under Robolectric's test environment.
+     */
+    suspend fun exportForSharing(recipeId: String): File? = withContext(Dispatchers.IO) {
+        val recipe = recipeRepository.observeRecipe(recipeId).first() ?: return@withContext null
+        val dir = File(context.cacheDir, "shared").apply { mkdirs() }
+        val file = File(dir, "${recipe.title.toFileSlug()}.recipe.zip")
+        ZipOutputStream(file.outputStream()).use { zip ->
+            val backupRecipe = recipe.toBackup(zip)
+            zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
+            zip.write(json.encodeToString(BackupManifest(recipes = listOf(backupRecipe))).toByteArray())
+            zip.closeEntry()
+        }
+        file
+    }
+
+    /**
+     * Imports the first recipe from [source] (a file made by [exportForSharing], received via the
+     * share sheet) and returns its id, or `null` if [source] has no recipe to import.
+     */
+    suspend fun importShared(source: Uri): String? = withContext(Dispatchers.IO) {
+        val recipe = readManifest(source)?.recipes?.firstOrNull() ?: return@withContext null
+        recipeRepository.saveRecipe(recipe.toDraft())
+        recipe.id
+    }
+
+    private fun readManifest(source: Uri): BackupManifest? {
+        val input = context.contentResolver.openInputStream(source) ?: error("Could not open $source")
+        return input.use { stream -> ZipInputStream(stream).use { zip -> zip.extractFilesAndReadManifest() } }
     }
 
     /** Extracts every `files/` entry into place and returns the parsed manifest, if present. */
@@ -160,4 +191,10 @@ constructor(
         is BackupAttachment.Pdf ->
             Attachment.Pdf(id = id, filePath = filePath, title = title, thumbnailPath = thumbnailPath)
     }
+}
+
+/** A safe file basename from a recipe title, e.g. "Mom's Pancakes!" -> "Moms-Pancakes". */
+private fun String.toFileSlug(): String {
+    val slug = trim().replace(Regex("[^A-Za-z0-9]+"), "-").trim('-')
+    return slug.ifEmpty { "recipe" }
 }

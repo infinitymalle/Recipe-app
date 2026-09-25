@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.malkolm.recipeapp.ui.cookrecipe.CookRecipeScreen
+import dev.malkolm.recipeapp.ui.importrecipe.ImportRecipeScreen
 import dev.malkolm.recipeapp.ui.recipedetail.RecipeDetailScreen
 import dev.malkolm.recipeapp.ui.recipeedit.RecipeEditScreen
 import dev.malkolm.recipeapp.ui.recipelist.RecipeListScreen
@@ -38,6 +39,18 @@ fun RecipeNavHost(startDestination: Any = RecipeListRoute) {
         }
         composable<CookRecipeRoute> {
             CookRecipeScreen(onBack = { navController.popBackStack() })
+        }
+        composable<ImportRecipeRoute> {
+            ImportRecipeScreen(
+                onImported = { id ->
+                    navController.navigate(RecipeDetailRoute(id)) { popUpTo<ImportRecipeRoute> { inclusive = true } }
+                },
+                onGiveUp = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(RecipeListRoute) { popUpTo(RecipeListRoute) { inclusive = true } }
+                    }
+                }
+            )
         }
         composable<RecipeEditRoute> {
             // A share (RecipeEditRoute as the start destination) has no list entry underneath to

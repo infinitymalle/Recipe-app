@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.malkolm.recipeapp.data.backup.RecipeBackupService
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.ui.navigation.RecipeDetailRoute
+import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +31,8 @@ class RecipeDetailViewModel
 @Inject
 constructor(
     savedStateHandle: SavedStateHandle,
-    private val recipeRepository: RecipeRepository
+    private val recipeRepository: RecipeRepository,
+    private val backupService: RecipeBackupService
 ) : ViewModel() {
     private val recipeId = savedStateHandle.toRoute<RecipeDetailRoute>().recipeId
 
@@ -44,4 +47,7 @@ constructor(
 
     /** Undoes [deleteRecipe]. */
     suspend fun restoreRecipe() = recipeRepository.restoreRecipe(recipeId)
+
+    /** A single-recipe export of this recipe, ready to share. */
+    suspend fun shareRecipe(): File? = backupService.exportForSharing(recipeId)
 }

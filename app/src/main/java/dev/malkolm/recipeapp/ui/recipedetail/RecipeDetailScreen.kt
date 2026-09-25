@@ -1,5 +1,6 @@
 package dev.malkolm.recipeapp.ui.recipedetail
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -67,9 +69,11 @@ fun RecipeDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val deletedMessage = stringResource(R.string.recipe_detail_deleted_message)
     val undoLabel = stringResource(R.string.recipe_detail_undo)
+    val shareErrorMessage = stringResource(R.string.recipe_detail_share_error)
 
     RecipeDetailContent(
         uiState = uiState,
@@ -77,6 +81,23 @@ fun RecipeDetailScreen(
         onBack = onBack,
         onEditRecipe = onEditRecipe,
         onCookRecipe = onCookRecipe,
+        onShare = {
+            scope.launch {
+                val file = viewModel.shareRecipe()
+                if (file == null) {
+                    snackbarHostState.showSnackbar(shareErrorMessage)
+                } else {
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                    val sendIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "application/zip"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    context.startActivity(Intent.createChooser(sendIntent, null))
+                }
+            }
+        },
         onConfirmDelete = {
             scope.launch {
                 viewModel.deleteRecipe()
@@ -104,6 +125,7 @@ fun RecipeDetailContent(
     onBack: () -> Unit,
     onEditRecipe: (String) -> Unit,
     onCookRecipe: (String) -> Unit,
+    onShare: () -> Unit,
     onConfirmDelete: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -128,6 +150,9 @@ fun RecipeDetailContent(
                     if (uiState is RecipeDetailUiState.Content) {
                         TextButton(onClick = { onEditRecipe(uiState.recipe.id) }) {
                             Text(stringResource(R.string.recipe_detail_edit))
+                        }
+                        TextButton(onClick = onShare) {
+                            Text(stringResource(R.string.recipe_detail_share))
                         }
                         TextButton(onClick = { showDeleteConfirm = true }) {
                             Text(stringResource(R.string.recipe_detail_delete))
@@ -309,6 +334,7 @@ private fun RecipeDetailContentPreview() {
             onBack = {},
             onEditRecipe = {},
             onCookRecipe = {},
+            onShare = {},
             onConfirmDelete = {}
         )
     }
