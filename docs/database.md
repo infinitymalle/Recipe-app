@@ -27,12 +27,13 @@ Design choices worth knowing:
 ## Changing the schema (step by step)
 
 1. Change the entity class(es).
-2. Bump `version` in `RecipeDatabase.kt` (1 -> 2).
+2. Bump `version` in `RecipeDatabase.kt` (e.g. 2 -> 3).
 3. Write the migration in `Migrations.kt` and add it to `ALL_MIGRATIONS`, or use Room's
    `autoMigrations` for simple changes (adding a column, adding a table).
-4. Build. Room writes `app/schemas/.../2.json`. **Commit it** together with the code.
+4. Build. Room writes `app/schemas/.../<new version>.json`. **Commit it** together with the code.
 5. Run `./gradlew testDebugUnitTest`. `RecipeDatabaseSchemaTest` fails if step 2 or 4 was skipped.
-6. Write a migration test (see below).
+6. Write a migration test in `MigrationsTest` (see below). If the schema test fails right after
+   the first build, run the tests once more: the new schema file is only picked up on the next run.
 
 Never use `fallbackToDestructiveMigration()`: it silently deletes all recipes on a mismatch.
 
@@ -42,7 +43,7 @@ Room's `MigrationTestHelper` (in `room-testing`) creates a database at the old v
 committed schema JSON, inserts sample data, runs the migration and checks the data survived.
 
 With Room 2.8.5 the helper failed under Robolectric (a driver database-name mismatch raised inside
-the helper itself), so it cannot run in the normal JVM unit tests. When the first migration is
-written, put its test in `app/src/androidTest` (it runs on a real phone with
-`./gradlew connectedDebugAndroidTest` or from Android Studio). Room's Gradle plugin already adds
-`app/schemas` to the androidTest assets.
+the helper itself), so `MigrationsTest` does the same job by hand and runs in the normal JVM unit
+tests: it builds a database file from the committed `<old version>.json`, inserts rows, then opens
+it with the real `RecipeDatabase` and `ALL_MIGRATIONS`. Room validates the migrated tables against
+the current entities, so a missing column or default fails the test. Add one test per migration.

@@ -16,6 +16,19 @@ val MIGRATION_1_2 =
     }
 
 /**
+ * Gives shopping list items the same change tracking recipes have, ready for a future sync:
+ * `updatedAt` (existing rows start at their `createdAt`) and a soft-delete `deletedAt`.
+ */
+val MIGRATION_2_3 =
+    object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `shopping_list_items` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `shopping_list_items` ADD COLUMN `deletedAt` INTEGER")
+            db.execSQL("UPDATE `shopping_list_items` SET `updatedAt` = `createdAt`")
+        }
+    }
+
+/**
  * Every database migration, in order.
  *
  * When the schema changes: bump `version` in [RecipeDatabase], add a `Migration(old, new)` here
@@ -23,4 +36,4 @@ val MIGRATION_1_2 =
  * The app never falls back to deleting the database: her recipes must survive every update.
  * See docs/database.md for the step-by-step.
  */
-val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

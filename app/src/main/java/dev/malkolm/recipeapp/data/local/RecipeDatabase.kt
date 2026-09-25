@@ -20,7 +20,7 @@ import dev.malkolm.recipeapp.data.local.entity.TagEntity
         RecipeTagCrossRef::class,
         ShoppingListItemEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class RecipeDatabase : RoomDatabase() {

@@ -12,10 +12,12 @@ fun ShoppingListItemEntity.toDomain() = ShoppingListItem(
     addedAt = Instant.ofEpochMilli(createdAt)
 )
 
-fun ShoppingListItem.toEntity() = ShoppingListItemEntity(
+/** A live (not deleted) row for this item, last changed at [updatedAt]. */
+fun ShoppingListItem.toEntity(updatedAt: Instant) = ShoppingListItemEntity(
     id = id,
     name = name,
     amount = amount,
     isChecked = isChecked,
-    createdAt = addedAt.toEpochMilli()
+    createdAt = addedAt.toEpochMilli(),
+    updatedAt = updatedAt.toEpochMilli()
 )

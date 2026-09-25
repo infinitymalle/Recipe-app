@@ -27,13 +27,14 @@ constructor(
 
     override suspend fun addEntries(entries: List<ShoppingListEntry>) {
         val existing = dao.getUnchecked().map { it.toDomain() }
-        val changed = mergeShoppingEntries(existing, entries, idGenerator::newId, clock.instant())
-        if (changed.isNotEmpty()) dao.upsertAll(changed.map { it.toEntity() })
+        val now = clock.instant()
+        val changed = mergeShoppingEntries(existing, entries, idGenerator::newId, now)
+        if (changed.isNotEmpty()) dao.upsertAll(changed.map { it.toEntity(updatedAt = now) })
     }
 
-    override suspend fun setChecked(id: String, checked: Boolean) = dao.setChecked(id, checked)
+    override suspend fun setChecked(id: String, checked: Boolean) = dao.setChecked(id, checked, clock.millis())
 
-    override suspend fun deleteItem(id: String) = dao.delete(id)
+    override suspend fun deleteItem(id: String) = dao.markDeleted(id, clock.millis())
 
-    override suspend fun clearChecked() = dao.clearChecked()
+    override suspend fun clearChecked() = dao.markCheckedDeleted(clock.millis())
 }
