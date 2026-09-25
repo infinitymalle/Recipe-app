@@ -1,5 +1,6 @@
 package dev.malkolm.recipeapp.ui.shoppinglist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.RecipeSummary
 import dev.malkolm.recipeapp.domain.model.ShoppingListItem
+import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.time.Instant
 
@@ -73,69 +77,72 @@ fun ShoppingListContent(
     var showAddItem by remember { mutableStateOf(false) }
     var showPickRecipe by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.shopping_list_title)) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
-                },
-                actions = {
-                    if (uiState.items.any { it.isChecked }) {
-                        TextButton(onClick = onClearChecked) {
-                            Text(stringResource(R.string.shopping_list_clear_checked))
+    BlurredImageBackground(imagePath = uiState.backgroundImagePath, modifier = modifier) {
+        Scaffold(
+            containerColor =
+                if (uiState.backgroundImagePath != null) Color.Transparent else MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.shopping_list_title)) },
+                    navigationIcon = {
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
+                    },
+                    actions = {
+                        if (uiState.items.any { it.isChecked }) {
+                            TextButton(onClick = onClearChecked) {
+                                Text(stringResource(R.string.shopping_list_clear_checked))
+                            }
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            if (uiState.items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.shopping_list_empty))
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(uiState.items, key = { it.id }) { item ->
+                        ShoppingListRow(
+                            item = item,
+                            onSetChecked = { checked -> onSetChecked(item.id, checked) },
+                            onRemove = { onRemoveItem(item.id) }
+                        )
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier.padding(top = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(onClick = { showAddItem = true }) {
+                                Text(stringResource(R.string.shopping_list_add_item))
+                            }
+                            OutlinedButton(onClick = { showPickRecipe = true }) {
+                                Text(stringResource(R.string.shopping_list_add_from_recipe))
+                            }
                         }
                     }
                 }
-            )
-        }
-    ) { innerPadding ->
-        if (uiState.items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.shopping_list_empty))
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(uiState.items, key = { it.id }) { item ->
-                    ShoppingListRow(
-                        item = item,
-                        onSetChecked = { checked -> onSetChecked(item.id, checked) },
-                        onRemove = { onRemoveItem(item.id) }
-                    )
-                }
-                item {
-                    Row(
-                        modifier = Modifier.padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+
+            // Also reachable from the empty state, where the LazyColumn above is not shown.
+            if (uiState.items.isEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(innerPadding).padding(16.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { showAddItem = true }) {
                             Text(stringResource(R.string.shopping_list_add_item))
                         }
                         OutlinedButton(onClick = { showPickRecipe = true }) {
                             Text(stringResource(R.string.shopping_list_add_from_recipe))
                         }
-                    }
-                }
-            }
-        }
-
-        // Also reachable from the empty state, where the LazyColumn above is not shown.
-        if (uiState.items.isEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(innerPadding).padding(16.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showAddItem = true }) {
-                        Text(stringResource(R.string.shopping_list_add_item))
-                    }
-                    OutlinedButton(onClick = { showPickRecipe = true }) {
-                        Text(stringResource(R.string.shopping_list_add_from_recipe))
                     }
                 }
             }
@@ -166,7 +173,13 @@ fun ShoppingListContent(
 
 @Composable
 private fun ShoppingListRow(item: ShoppingListItem, onSetChecked: (Boolean) -> Unit, onRemove: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Checkbox(checked = item.isChecked, onCheckedChange = onSetChecked)
         val label = if (item.amount.isNullOrBlank()) item.name else "${item.name} (${item.amount})"
         Text(

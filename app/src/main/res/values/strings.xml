@@ -31,6 +31,17 @@
     <string name="settings_import_success_prefix">Imported</string>
     <string name="settings_backup_error">Backup failed</string>
 
+    <string name="settings_blur_title">Background blur</string>
+    <string name="settings_blur_value">Blur: %1$d</string>
+    <string name="settings_shopping_picture_title">Shopping list picture</string>
+    <string name="settings_shopping_picture_none">No picture chosen yet.</string>
+    <string name="settings_shopping_picture_choose">Choose picture</string>
+    <string name="settings_shopping_picture_change">Change picture</string>
+    <string name="settings_examples_title">Example recipes</string>
+    <string name="settings_examples_description">Adds a few detailed recipes tagged \"Example\". Adding them again restores the originals.</string>
+    <string name="settings_examples_add">Add example recipes</string>
+    <string name="settings_examples_added_prefix">Example recipes added:</string>
+
     <string name="import_recipe_failed">Couldn\'t import that recipe. The file may be damaged or not a recipe export.</string>
 
     <plurals name="recipe_servings_short">

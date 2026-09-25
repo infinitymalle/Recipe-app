@@ -23,11 +23,7 @@ constructor(@ApplicationContext private val context: Context) {
     /** Copies a picked photo into private storage. Returns the new file's path, relative to the files directory. */
     suspend fun saveImage(recipeId: String, sourceUri: Uri): String = withContext(Dispatchers.IO) {
         val relativePath = newRelativePath(recipeId)
-        val destination = resolve(relativePath)
-        destination.parentFile?.mkdirs()
-        context.contentResolver.openInputStream(sourceUri)?.use { input ->
-            destination.outputStream().use { output -> input.copyTo(output) }
-        } ?: error("Could not open $sourceUri")
+        copyInto(relativePath, sourceUri)
         relativePath
     }
 
@@ -43,6 +39,38 @@ constructor(@ApplicationContext private val context: Context) {
         file.createNewFile()
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         CaptureTarget(uri = uri, relativePath = relativePath)
+    }
+
+    /** Copies a picked photo for app-wide use (e.g. the shopping list background), not tied to a recipe. */
+    suspend fun saveBackgroundImage(sourceUri: Uri): String = withContext(Dispatchers.IO) {
+        val relativePath = "backgrounds/${UUID.randomUUID()}.jpg"
+        copyInto(relativePath, sourceUri)
+        relativePath
+    }
+
+    suspend fun delete(relativePath: String) = withContext(Dispatchers.IO) {
+        resolve(relativePath).delete()
+        Unit
+    }
+
+    /**
+     * Deletes photos in [recipeId]'s folder that [keep] does not list, e.g. a replaced cover
+     * picture, or a camera shot from an edit that was cancelled. Call after the recipe is saved.
+     */
+    suspend fun deleteUnused(recipeId: String, keep: Set<String>) = withContext(Dispatchers.IO) {
+        val folder = resolve("recipes/$recipeId")
+        folder.listFiles()?.forEach { file ->
+            if ("recipes/$recipeId/${file.name}" !in keep) file.delete()
+        }
+        Unit
+    }
+
+    private fun copyInto(relativePath: String, sourceUri: Uri) {
+        val destination = resolve(relativePath)
+        destination.parentFile?.mkdirs()
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            destination.outputStream().use { output -> input.copyTo(output) }
+        } ?: error("Could not open $sourceUri")
     }
 
     private fun newRelativePath(recipeId: String) = "recipes/$recipeId/${UUID.randomUUID()}.jpg"

@@ -17,8 +17,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -144,6 +146,12 @@ fun RecipeListContent(
                             onValueChange = onSearchQueryChange,
                             label = { Text(stringResource(R.string.recipe_list_search_label)) },
                             singleLine = true,
+                            // Solid, not see-through, so it stays readable on top of a background photo.
+                            colors =
+                                OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                                ),
                             modifier = Modifier.fillMaxWidth().padding(16.dp)
                         )
                         if (uiState.availableTags.isNotEmpty()) {
@@ -155,7 +163,11 @@ fun RecipeListContent(
                                     FilterChip(
                                         selected = tag.id == uiState.selectedTagId,
                                         onClick = { onSelectTag(tag.id) },
-                                        label = { Text(tag.name) }
+                                        label = { Text(tag.name) },
+                                        colors =
+                                            FilterChipDefaults.filterChipColors(
+                                                containerColor = MaterialTheme.colorScheme.surface
+                                            )
                                     )
                                 }
                             }

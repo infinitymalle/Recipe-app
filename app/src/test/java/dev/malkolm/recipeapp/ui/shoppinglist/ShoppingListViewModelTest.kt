@@ -3,6 +3,7 @@ package dev.malkolm.recipeapp.ui.shoppinglist
 import dev.malkolm.recipeapp.domain.model.RecipeDraft
 import dev.malkolm.recipeapp.testutil.FakeRecipeRepository
 import dev.malkolm.recipeapp.testutil.FakeShoppingListRepository
+import dev.malkolm.recipeapp.testutil.FakeThemeSettingsRepository
 import dev.malkolm.recipeapp.testutil.MainDispatcherRule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +18,8 @@ class ShoppingListViewModelTest {
 
     @Test
     fun `adding a manual item shows up in the list`() = runTest {
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository())
+        val vm =
+            ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository(), FakeThemeSettingsRepository())
 
         vm.addItem("Eggs", "6")
 
@@ -28,7 +30,8 @@ class ShoppingListViewModelTest {
 
     @Test
     fun `adding an item with a blank name does nothing`() = runTest {
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository())
+        val vm =
+            ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository(), FakeThemeSettingsRepository())
 
         vm.addItem("   ", "6")
 
@@ -37,7 +40,8 @@ class ShoppingListViewModelTest {
 
     @Test
     fun `checking and removing an item`() = runTest {
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository())
+        val vm =
+            ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository(), FakeThemeSettingsRepository())
         vm.addItem("Eggs", "6")
         val id = vm.uiState.first { it.items.isNotEmpty() }.items.single().id
 
@@ -50,7 +54,8 @@ class ShoppingListViewModelTest {
 
     @Test
     fun `clearing checked items only removes the checked ones`() = runTest {
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository())
+        val vm =
+            ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository(), FakeThemeSettingsRepository())
         vm.addItem("Eggs", "6")
         vm.addItem("Flour", "2 cups")
         val eggsId = vm.uiState.first { it.items.size == 2 }.items.first { it.name == "Eggs" }.id
@@ -68,7 +73,7 @@ class ShoppingListViewModelTest {
         recipeRepository.saveRecipe(
             RecipeDraft(id = "r1", title = "Pancakes", ingredients = "Batter:\nFlour (2 cups)\nEggs (2)\nSalt")
         )
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), recipeRepository)
+        val vm = ShoppingListViewModel(FakeShoppingListRepository(), recipeRepository, FakeThemeSettingsRepository())
 
         vm.addFromRecipe("r1")
 
@@ -80,7 +85,7 @@ class ShoppingListViewModelTest {
     fun `the recipe picker list mirrors the recipe repository`() = runTest {
         val recipeRepository = FakeRecipeRepository()
         recipeRepository.saveRecipe(RecipeDraft(id = "r1", title = "Pancakes"))
-        val vm = ShoppingListViewModel(FakeShoppingListRepository(), recipeRepository)
+        val vm = ShoppingListViewModel(FakeShoppingListRepository(), recipeRepository, FakeThemeSettingsRepository())
 
         val state = vm.uiState.first { it.recipes.isNotEmpty() }
         assertEquals(listOf("Pancakes"), state.recipes.map { it.title })

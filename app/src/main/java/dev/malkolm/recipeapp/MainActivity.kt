@@ -1,18 +1,35 @@
 package dev.malkolm.recipeapp
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
+import androidx.core.view.WindowCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.malkolm.recipeapp.domain.model.ThemeMode
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
+import dev.malkolm.recipeapp.ui.components.LocalBackgroundBlur
 import dev.malkolm.recipeapp.ui.navigation.ImportRecipeRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeListRoute
@@ -38,11 +55,35 @@ class MainActivity : ComponentActivity() {
                     ThemeMode.DARK -> true
                     ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 }
+            val backgroundBlur by themeSettingsRepository.backgroundBlur.collectAsState()
             RecipeAppTheme(darkTheme = darkTheme) {
-                RecipeNavHost(startDestination = startDestination)
+                CompositionLocalProvider(LocalBackgroundBlur provides backgroundBlur.dp) {
+                    Box {
+                        RecipeNavHost(startDestination = startDestination)
+                        StatusBarStrip()
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * A solid band behind the status bar (clock, notifications) so it stands apart from the screen's
+ * own top bar instead of blending into it. The icons are switched to dark or light to match it.
+ * Drawn on top of every screen: the screens' top bars already leave this space empty.
+ */
+@Composable
+private fun StatusBarStrip() {
+    val color = MaterialTheme.colorScheme.primary
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = color.luminance() > 0.5f
+        }
+    }
+    Box(modifier = Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(color))
 }
 
 /**

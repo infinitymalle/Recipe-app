@@ -271,6 +271,47 @@ class RecipeEditViewModelTest {
     }
 
     @Test
+    fun `changing the cover picture replaces the old one instead of keeping both`() = runTest {
+        val vm = viewModel(newRecipeHandle())
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addLinkAttachment(title = "Source", url = "https://example.com")
+        vm.addCoverPicture("recipes/1/old.jpg")
+        vm.addPictureAttachment("recipes/1/extra.jpg")
+        vm.addCoverPicture("recipes/1/new.jpg")
+
+        val state = vm.uiState.first() as RecipeEditUiState.Editing
+        val pictures = state.addedAttachments.filterIsInstance<Attachment.Image>().map { it.filePath }
+        assertEquals(listOf("recipes/1/new.jpg", "recipes/1/extra.jpg"), pictures)
+        assertEquals(3, state.addedAttachments.size)
+    }
+
+    @Test
+    fun `saving deletes photo files the recipe no longer uses`() = runTest {
+        val repository = FakeRecipeRepository()
+        repository.saveRecipe(
+            RecipeDraft(
+                id = "r1",
+                title = "Pancakes",
+                attachments = listOf(Attachment.Image(id = "a1", filePath = "recipes/r1/old.jpg"))
+            )
+        )
+        val oldFile = imageStorage.resolve("recipes/r1/old.jpg").apply { parentFile?.mkdirs() }
+        val newFile = imageStorage.resolve("recipes/r1/new.jpg")
+        oldFile.writeBytes(byteArrayOf(1))
+        newFile.writeBytes(byteArrayOf(2))
+        val vm = viewModel(editHandle("r1"), repository)
+        vm.uiState.first { it is RecipeEditUiState.Editing }
+
+        vm.addCoverPicture("recipes/r1/new.jpg")
+        vm.save()
+        vm.uiState.first { (it as RecipeEditUiState.Editing).saved }
+
+        assertFalse(oldFile.exists())
+        assertTrue(newFile.exists())
+    }
+
+    @Test
     fun `a picture that cannot be read reports an error instead of crashing`() = runTest {
         val vm = viewModel(newRecipeHandle())
         vm.uiState.first { it is RecipeEditUiState.Editing }

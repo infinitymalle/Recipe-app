@@ -214,12 +214,14 @@ constructor(
         }
     }
 
-    /** Adds a picture at the front of the list, so it becomes the recipe's list thumbnail. */
+    /**
+     * Sets the recipe's picture: replaces the current cover (the first picture) in place, or adds
+     * one at the front if there is none, so it becomes the recipe's list thumbnail.
+     */
     fun addCoverPicture(uri: Uri) {
         viewModelScope.launch {
             val filePath = trySaveImage(uri) ?: return@launch
-            val attachment = Attachment.Image(id = idGenerator.newId(), filePath = filePath)
-            updateEditing { state -> state.copy(addedAttachments = listOf(attachment) + state.addedAttachments) }
+            setCover(Attachment.Image(id = idGenerator.newId(), filePath = filePath))
         }
     }
 
@@ -243,9 +245,18 @@ constructor(
     }
 
     /** Call once the camera reports it wrote into [relativePath] (from [prepareCameraCapture]). */
-    fun addCoverPicture(relativePath: String) {
-        val attachment = Attachment.Image(id = idGenerator.newId(), filePath = relativePath)
-        updateEditing { state -> state.copy(addedAttachments = listOf(attachment) + state.addedAttachments) }
+    fun addCoverPicture(relativePath: String) =
+        setCover(Attachment.Image(id = idGenerator.newId(), filePath = relativePath))
+
+    private fun setCover(cover: Attachment.Image) = updateEditing { state ->
+        val index = state.addedAttachments.indexOfFirst { it is Attachment.Image }
+        val attachments =
+            if (index < 0) {
+                listOf(cover) + state.addedAttachments
+            } else {
+                state.addedAttachments.toMutableList().apply { this[index] = cover }
+            }
+        state.copy(addedAttachments = attachments)
     }
 
     fun removeAttachment(id: String) = updateEditing { state ->
@@ -259,7 +270,11 @@ constructor(
             return
         }
         viewModelScope.launch {
-            recipeRepository.saveRecipe(state.toDraft())
+            val draft = state.toDraft()
+            recipeRepository.saveRecipe(draft)
+            // Replaced or removed photos, and camera shots from cancelled edits, are only now unused.
+            val keep = draft.attachments.flatMap { it.filePaths() }.toSet()
+            runCatching { imageStorage.deleteUnused(recipeId, keep) }
             updateEditing { it.copy(saved = true) }
         }
     }
@@ -304,6 +319,13 @@ constructor(
                 .map { name -> Tag.of(idGenerator.newId(), name) },
         attachments = otherAttachments + addedAttachments
     )
+}
+
+private fun Attachment.filePaths(): List<String> = when (this) {
+    is Attachment.Image -> listOf(filePath)
+    is Attachment.Pdf -> listOfNotNull(filePath, thumbnailPath)
+    is Attachment.Link -> listOfNotNull(thumbnailPath)
+    is Attachment.Text -> emptyList()
 }
 
 /** True when the whole (trimmed) string is a single http(s) URL, not just text that contains one. */
