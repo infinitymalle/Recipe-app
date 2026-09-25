@@ -1,0 +1,27 @@
+# Dependabot opens pull requests that bump dependency versions; CI runs on each one, and nothing
+# reaches main unless it is merged. Minor and patch updates are grouped into one pull request per
+# week to keep the noise down; major updates (which can need code changes) come one at a time.
+# Security alerts are a separate switch in the repo settings, see docs/security.md.
+version: 2
+updates:
+  # Libraries and plugins in gradle/libs.versions.toml, and the Gradle wrapper.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      gradle-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The actions used in .github/workflows/ci.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

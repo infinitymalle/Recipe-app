@@ -49,7 +49,8 @@ android {
         warningsAsErrors = true
         // "A newer version is available" reminders are not bugs. Left on, they would turn CI red
         // the day a new Gradle/AGP/library release appears, with no code change. Keeping
-        // dependencies current is a separate, deliberate job.
+        // dependencies current is a separate, deliberate job (Dependabot's weekly pull requests,
+        // see .github/dependabot.yml).
         disable +=
             setOf(
                 "AndroidGradlePluginVersion",
