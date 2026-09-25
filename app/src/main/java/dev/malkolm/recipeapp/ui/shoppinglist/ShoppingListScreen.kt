@@ -43,6 +43,7 @@ import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.domain.model.RecipeSummary
 import dev.malkolm.recipeapp.domain.model.ShoppingListItem
 import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
+import dev.malkolm.recipeapp.ui.components.PickRecipeDialog
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.time.Instant
 
@@ -161,6 +162,7 @@ fun ShoppingListContent(
 
     if (showPickRecipe) {
         PickRecipeDialog(
+            title = stringResource(R.string.shopping_list_pick_recipe_title),
             recipes = uiState.recipes,
             onDismiss = { showPickRecipe = false },
             onPick = { recipeId ->
@@ -223,29 +225,6 @@ private fun AddShoppingItemDialog(onDismiss: () -> Unit, onAdd: (name: String, a
                 Text(stringResource(R.string.recipe_edit_dialog_add))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_edit_dialog_cancel)) } }
-    )
-}
-
-@Composable
-private fun PickRecipeDialog(recipes: List<RecipeSummary>, onDismiss: () -> Unit, onPick: (String) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.shopping_list_pick_recipe_title)) },
-        text = {
-            if (recipes.isEmpty()) {
-                Text(stringResource(R.string.shopping_list_pick_recipe_empty))
-            } else {
-                Column(modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
-                    recipes.forEach { recipe ->
-                        TextButton(onClick = { onPick(recipe.id) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(recipe.title, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_edit_dialog_cancel)) } }
     )
 }

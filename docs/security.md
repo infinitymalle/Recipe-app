@@ -60,5 +60,9 @@ Work through this list before the first public release, and again before adding 
 - Recipe links only open for http/https.
 - The FileProvider and the timer service are not exported; the provider only exposes the photo
   and share folders.
+- Calendar access (for the meal planner) is only asked for when the user chooses a calendar in
+  Settings. The app lists the writable calendars, and only ever writes, updates or deletes events
+  whose ids it stored itself (`plan_entries.calendarEventId`); it never reads or changes the
+  user's other events. Stopping calendar sync removes the app's upcoming events.
 - Database access goes through Room with bound parameters (no SQL built from user text).
 - CI runs with read-only repository permissions.

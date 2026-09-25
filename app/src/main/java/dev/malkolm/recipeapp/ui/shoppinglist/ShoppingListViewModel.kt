@@ -4,13 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.malkolm.recipeapp.domain.model.RecipeSummary
-import dev.malkolm.recipeapp.domain.model.ShoppingListEntry
 import dev.malkolm.recipeapp.domain.model.ShoppingListItem
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.domain.repository.ShoppingListRepository
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
-import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
-import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,12 +62,7 @@ constructor(
     fun addFromRecipe(recipeId: String) {
         viewModelScope.launch {
             val recipe = recipeRepository.observeRecipe(recipeId).first() ?: return@launch
-            var nextId = 0
-            val entries =
-                ingredientItemsFrom(recipe.ingredients) { (nextId++).toString() }
-                    .filterIsInstance<IngredientListItem.Entry>()
-                    .map { ShoppingListEntry(name = it.name, amount = it.amount) }
-            shoppingListRepository.addEntries(entries)
+            shoppingListRepository.addEntries(shoppingEntriesFrom(recipe.ingredients))
         }
     }
 }

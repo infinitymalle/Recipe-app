@@ -1,5 +1,6 @@
 package dev.malkolm.recipeapp.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -28,8 +30,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -55,6 +60,9 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // Which group is open; null shows the list of groups. Back returns to the list first.
+    var section by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+    BackHandler(enabled = section != null) { section = null }
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val backgroundBlur by viewModel.backgroundBlur.collectAsStateWithLifecycle()
     val shoppingListImagePath by viewModel.shoppingListImagePath.collectAsStateWithLifecycle()
@@ -92,6 +100,8 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
 
     SettingsContent(
         onBack = onBack,
+        section = section,
+        onOpenSection = { section = it },
         themeMode = themeMode,
         onThemeModeChange = viewModel::setThemeMode,
         backgroundBlur = backgroundBlur,
@@ -110,7 +120,10 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
         onExport = { exportLauncher.launch("recipe-app-backup.zip") },
         onImport = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
         snackbarHostState = snackbarHostState,
-        modifier = modifier
+        modifier = modifier,
+        plannerSection = {
+            MealPlannerSettings(viewModel) { message -> scope.launch { snackbarHostState.showSnackbar(message) } }
+        }
     )
 }
 
@@ -119,6 +132,8 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
 @Composable
 fun SettingsContent(
     onBack: () -> Unit,
+    section: SettingsSection?,
+    onOpenSection: (SettingsSection?) -> Unit,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     backgroundBlur: Int,
@@ -130,16 +145,19 @@ fun SettingsContent(
     onExport: () -> Unit,
     onImport: () -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    plannerSection: @Composable () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(section?.titleRes ?: R.string.settings_title)) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
+                    TextButton(onClick = { if (section != null) onOpenSection(null) else onBack() }) {
+                        Text(stringResource(R.string.recipe_detail_back))
+                    }
                 }
             )
         }
@@ -153,78 +171,107 @@ fun SettingsContent(
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.settings_theme_title), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ThemeModeChip(ThemeMode.SYSTEM, R.string.settings_theme_system, themeMode, onThemeModeChange)
-                ThemeModeChip(ThemeMode.LIGHT, R.string.settings_theme_light, themeMode, onThemeModeChange)
-                ThemeModeChip(ThemeMode.DARK, R.string.settings_theme_dark, themeMode, onThemeModeChange)
-            }
+            when (section) {
+                null -> SettingsSection.entries.forEach { SectionRow(it) { onOpenSection(it) } }
 
-            HorizontalDivider()
-            Text(stringResource(R.string.settings_blur_title), style = MaterialTheme.typography.titleSmall)
-            Text(stringResource(R.string.settings_blur_value, backgroundBlur))
-            val blurRange = ThemeSettingsRepository.BLUR_RANGE
-            Slider(
-                value = backgroundBlur.toFloat(),
-                onValueChange = { onBackgroundBlurChange(it.roundToInt()) },
-                valueRange = blurRange.first.toFloat()..blurRange.last.toFloat(),
-                steps = blurRange.last - blurRange.first - 1
-            )
+                SettingsSection.MEAL_PLANNER -> plannerSection()
 
-            HorizontalDivider()
-            Text(stringResource(R.string.settings_shopping_picture_title), style = MaterialTheme.typography.titleSmall)
-            // Doubles as a live preview of the blur slider above.
-            if (shoppingListImagePath != null) {
-                AsyncImage(
-                    model = File(LocalContext.current.filesDir, shoppingListImagePath),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .blur(backgroundBlur.dp)
-                )
-            } else {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-                    Text(stringResource(R.string.settings_shopping_picture_none))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onChooseShoppingListImage, modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(
-                            if (shoppingListImagePath == null) {
-                                R.string.settings_shopping_picture_choose
-                            } else {
-                                R.string.settings_shopping_picture_change
-                            }
-                        )
+                SettingsSection.APPEARANCE -> {
+                    Text(stringResource(R.string.settings_theme_title), style = MaterialTheme.typography.titleSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ThemeModeChip(ThemeMode.SYSTEM, R.string.settings_theme_system, themeMode, onThemeModeChange)
+                        ThemeModeChip(ThemeMode.LIGHT, R.string.settings_theme_light, themeMode, onThemeModeChange)
+                        ThemeModeChip(ThemeMode.DARK, R.string.settings_theme_dark, themeMode, onThemeModeChange)
+                    }
+
+                    HorizontalDivider()
+                    Text(stringResource(R.string.settings_blur_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_blur_value, backgroundBlur))
+                    val blurRange = ThemeSettingsRepository.BLUR_RANGE
+                    Slider(
+                        value = backgroundBlur.toFloat(),
+                        onValueChange = { onBackgroundBlurChange(it.roundToInt()) },
+                        valueRange = blurRange.first.toFloat()..blurRange.last.toFloat(),
+                        steps = blurRange.last - blurRange.first - 1
                     )
+
+                    HorizontalDivider()
+                    Text(
+                        stringResource(R.string.settings_shopping_picture_title),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    // Doubles as a live preview of the blur slider above.
+                    if (shoppingListImagePath != null) {
+                        AsyncImage(
+                            model = File(LocalContext.current.filesDir, shoppingListImagePath),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .blur(backgroundBlur.dp)
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                            Text(stringResource(R.string.settings_shopping_picture_none))
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onChooseShoppingListImage, modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(
+                                    if (shoppingListImagePath == null) {
+                                        R.string.settings_shopping_picture_choose
+                                    } else {
+                                        R.string.settings_shopping_picture_change
+                                    }
+                                )
+                            )
+                        }
+                        if (shoppingListImagePath != null) {
+                            OutlinedButton(onClick = onRemoveShoppingListImage, modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.recipe_edit_remove_attachment))
+                            }
+                        }
+                    }
                 }
-                if (shoppingListImagePath != null) {
-                    OutlinedButton(onClick = onRemoveShoppingListImage, modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.recipe_edit_remove_attachment))
+
+                SettingsSection.RECIPES_AND_BACKUP -> {
+                    Text(stringResource(R.string.settings_examples_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_examples_description))
+                    OutlinedButton(onClick = onAddExampleRecipes, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.settings_examples_add))
+                    }
+
+                    HorizontalDivider()
+                    Text(stringResource(R.string.settings_backup_description))
+                    OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.settings_export_backup))
+                    }
+                    OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.settings_import_backup))
                     }
                 }
             }
+        }
+    }
+}
 
-            HorizontalDivider()
-            Text(stringResource(R.string.settings_examples_title), style = MaterialTheme.typography.titleSmall)
-            Text(stringResource(R.string.settings_examples_description))
-            OutlinedButton(onClick = onAddExampleRecipes, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_examples_add))
-            }
+/** The groups the settings are split into, each opened as its own page. */
+enum class SettingsSection(val titleRes: Int, val summaryRes: Int) {
+    APPEARANCE(R.string.settings_section_appearance, R.string.settings_section_appearance_summary),
+    MEAL_PLANNER(R.string.settings_planner_title, R.string.settings_section_planner_summary),
+    RECIPES_AND_BACKUP(R.string.settings_section_data, R.string.settings_section_data_summary)
+}
 
-            HorizontalDivider()
-            Text(stringResource(R.string.settings_backup_description))
-            OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_export_backup))
-            }
-            OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_import_backup))
-            }
+@Composable
+private fun SectionRow(section: SettingsSection, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(stringResource(section.titleRes), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(section.summaryRes), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -241,6 +288,8 @@ private fun SettingsScreenPreview() {
     RecipeAppTheme {
         SettingsContent(
             onBack = {},
+            section = null,
+            onOpenSection = {},
             themeMode = ThemeMode.SYSTEM,
             onThemeModeChange = {},
             backgroundBlur = ThemeSettingsRepository.DEFAULT_BLUR,

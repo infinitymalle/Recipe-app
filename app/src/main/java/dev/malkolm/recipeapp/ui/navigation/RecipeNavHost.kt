@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.malkolm.recipeapp.ui.cookrecipe.CookRecipeScreen
 import dev.malkolm.recipeapp.ui.importrecipe.ImportRecipeScreen
+import dev.malkolm.recipeapp.ui.mealplan.MealPlanScreen
 import dev.malkolm.recipeapp.ui.recipedetail.RecipeDetailScreen
 import dev.malkolm.recipeapp.ui.recipeedit.RecipeEditScreen
 import dev.malkolm.recipeapp.ui.recipelist.RecipeListScreen
@@ -21,11 +22,18 @@ fun RecipeNavHost(startDestination: Any = RecipeListRoute) {
                 onOpenRecipe = { id -> navController.navigate(RecipeDetailRoute(id)) },
                 onAddRecipe = { navController.navigate(RecipeEditRoute()) },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
-                onOpenShoppingList = { navController.navigate(ShoppingListRoute) }
+                onOpenShoppingList = { navController.navigate(ShoppingListRoute) },
+                onOpenMealPlan = { navController.navigate(MealPlanRoute) }
             )
         }
         composable<ShoppingListRoute> {
             ShoppingListScreen(onBack = { navController.popBackStack() })
+        }
+        composable<MealPlanRoute> {
+            MealPlanScreen(
+                onBack = { navController.popBackStack() },
+                onOpenRecipe = { id -> navController.navigate(RecipeDetailRoute(id)) }
+            )
         }
         composable<SettingsRoute> {
             SettingsScreen(onBack = { navController.popBackStack() })

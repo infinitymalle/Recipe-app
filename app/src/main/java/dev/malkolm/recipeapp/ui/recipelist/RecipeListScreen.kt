@@ -59,6 +59,7 @@ fun RecipeListScreen(
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenShoppingList: () -> Unit,
+    onOpenMealPlan: () -> Unit,
     viewModel: RecipeListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,6 +84,7 @@ fun RecipeListScreen(
         onAddRecipe = onAddRecipe,
         onOpenSettings = onOpenSettings,
         onOpenShoppingList = onOpenShoppingList,
+        onOpenMealPlan = onOpenMealPlan,
         onSearchQueryChange = viewModel::updateSearchQuery,
         onSelectTag = viewModel::selectTag
     )
@@ -98,6 +100,7 @@ fun RecipeListContent(
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenShoppingList: () -> Unit,
+    onOpenMealPlan: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectTag: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -127,6 +130,9 @@ fun RecipeListContent(
             },
             floatingActionButton = {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExtendedFloatingActionButton(onClick = onOpenMealPlan) {
+                        Text(stringResource(R.string.recipe_list_meal_plan))
+                    }
                     ExtendedFloatingActionButton(onClick = onOpenShoppingList) {
                         Text(stringResource(R.string.recipe_list_shopping_list))
                     }
@@ -252,6 +258,7 @@ private fun RecipeListContentEmptyPreview() {
             onAddRecipe = {},
             onOpenSettings = {},
             onOpenShoppingList = {},
+            onOpenMealPlan = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )
@@ -286,6 +293,7 @@ private fun RecipeListContentPreview() {
             onAddRecipe = {},
             onOpenSettings = {},
             onOpenShoppingList = {},
+            onOpenMealPlan = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )

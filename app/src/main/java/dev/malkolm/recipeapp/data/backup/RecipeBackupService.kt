@@ -47,26 +47,35 @@ class RecipeBackupService
 constructor(
     @ApplicationContext private val context: Context,
     private val recipeRepository: RecipeRepository,
-    private val idGenerator: IdGenerator
+    private val idGenerator: IdGenerator,
+    /** The meal plan and settings in a full backup; see [AppBackupExtras]. */
+    private val extras: BackupExtras = BackupExtras.None
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Writes every recipe to [destination]. Returns how many were written. */
+    /** Writes every recipe, the meal plan and the settings to [destination]. Returns how many recipes were written. */
     suspend fun export(destination: Uri): Int = withContext(Dispatchers.IO) {
         val recipes = recipeRepository.getAllRecipes()
         val output = context.contentResolver.openOutputStream(destination) ?: error("Could not open $destination")
         output.use {
             ZipOutputStream(it).use { zip ->
                 val backupRecipes = recipes.map { recipe -> recipe.toBackup(zip) }
+                val extrasData = extras.export(addFile = { path -> addFileEntry(zip, path) })
+                val manifest =
+                    BackupManifest(
+                        recipes = backupRecipes,
+                        mealPlan = extrasData.mealPlan,
+                        settings = extrasData.settings
+                    )
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
-                zip.write(json.encodeToString(BackupManifest(recipes = backupRecipes)).toByteArray())
+                zip.write(json.encodeToString(manifest).toByteArray())
                 zip.closeEntry()
             }
         }
         recipes.size
     }
 
-    /** Reads every recipe from [source] and saves it. Returns how many were read. */
+    /** Restores every recipe, the meal plan and the settings from [source]. Returns how many recipes were read. */
     suspend fun import(source: Uri): Int = withContext(Dispatchers.IO) {
         val manifest = readManifest(source) ?: error("Backup file has no manifest")
         // Checked before anything is saved, so a crafted file changes nothing.
@@ -74,6 +83,7 @@ constructor(
         for (recipe in manifest.recipes) {
             recipeRepository.saveRecipe(recipe.toDraft())
         }
+        extras.restore(BackupExtrasData(manifest.mealPlan, manifest.settings))
         manifest.recipes.size
     }
 

@@ -11,7 +11,41 @@ import kotlinx.serialization.Serializable
  * moving into place, never rewriting, on import.
  */
 @Serializable
-data class BackupManifest(val version: Int = 1, val recipes: List<BackupRecipe>)
+data class BackupManifest(
+    val version: Int = 2,
+    val recipes: List<BackupRecipe>,
+    /** Since version 2; empty in older backups and in single shared recipes. */
+    val mealPlan: List<BackupPlanEntry> = emptyList(),
+    /** Since version 2; `null` in older backups and in single shared recipes. */
+    val settings: BackupSettings? = null
+)
+
+/** A meal-plan entry: [kind] "MEAL" (with [mealType] and [recipeId]) or "GROCERY". [date] is ISO, "2026-09-28". */
+@Serializable
+data class BackupPlanEntry(
+    val id: String,
+    val date: String,
+    val kind: String,
+    val mealType: String? = null,
+    val recipeId: String? = null
+)
+
+/**
+ * The user's settings. Every field is optional so a backup can be read by versions with more or
+ * fewer settings. Not included: the chosen phone calendar, which only exists on the old phone.
+ * [shoppingListImagePath] is a `backgrounds/` file stored in the backup like recipe photos.
+ */
+@Serializable
+data class BackupSettings(
+    val themeMode: String? = null,
+    val backgroundBlur: Int? = null,
+    val shoppingListImagePath: String? = null,
+    val weeksAhead: Int? = null,
+    val mealsPerDay: Int? = null,
+    /** Meal type name to "HH:mm". */
+    val mealTimes: Map<String, String> = emptyMap(),
+    val groceryTime: String? = null
+)
 
 @Serializable
 data class BackupRecipe(

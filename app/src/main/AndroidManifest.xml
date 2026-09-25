@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- For copying the meal plan into a calendar the user picks (see MealPlanCalendarSync). Read
+         is needed to list the calendars and to check the app's own events still exist. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+
     <application
         android:name=".RecipeApplication"
         android:allowBackup="true"

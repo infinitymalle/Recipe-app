@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.malkolm.recipeapp.data.local.ALL_MIGRATIONS
 import dev.malkolm.recipeapp.data.local.RecipeDatabase
+import dev.malkolm.recipeapp.data.local.dao.PlanDao
 import dev.malkolm.recipeapp.data.local.dao.RecipeDao
 import dev.malkolm.recipeapp.data.local.dao.ShoppingListDao
 import dev.malkolm.recipeapp.data.local.dao.TagDao
@@ -31,6 +32,9 @@ object DatabaseModule {
 
     @Provides
     fun provideTagDao(database: RecipeDatabase): TagDao = database.tagDao()
+
+    @Provides
+    fun providePlanDao(database: RecipeDatabase): PlanDao = database.planDao()
 
     @Provides
     fun provideShoppingListDao(database: RecipeDatabase): ShoppingListDao = database.shoppingListDao()

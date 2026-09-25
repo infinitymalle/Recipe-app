@@ -24,7 +24,7 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
-    <string name="settings_backup_description">Save every recipe (with photos) to a file, or restore from one.</string>
+    <string name="settings_backup_description">Save every recipe (with photos), the meal plan and your settings to a file, or restore from one. The chosen calendar is not included: pick it again on a new phone.</string>
     <string name="settings_export_backup">Export backup</string>
     <string name="settings_import_backup">Import backup</string>
     <string name="settings_export_success_prefix">Exported</string>
@@ -37,6 +37,27 @@
     <string name="settings_shopping_picture_none">No picture chosen yet.</string>
     <string name="settings_shopping_picture_choose">Choose picture</string>
     <string name="settings_shopping_picture_change">Change picture</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_appearance_summary">Light or dark theme, background blur, shopping list picture</string>
+    <string name="settings_section_planner_summary">Weeks shown, meals per day, times, calendar</string>
+    <string name="settings_section_data">Recipes &amp; backup</string>
+    <string name="settings_section_data_summary">Example recipes, export and restore a backup</string>
+    <string name="settings_planner_title">Meal planner</string>
+    <plurals name="settings_planner_weeks">
+        <item quantity="one">Shows %1$d week ahead</item>
+        <item quantity="other">Shows %1$d weeks ahead</item>
+    </plurals>
+    <string name="settings_planner_meals_per_day">Meals per day</string>
+    <string name="settings_planner_times">Calendar event times (1 hour each)</string>
+    <string name="settings_planner_grocery_time">Grocery shopping</string>
+    <string name="settings_calendar_on">Copied to calendar: %1$s</string>
+    <string name="settings_calendar_off">Not copied to a calendar.</string>
+    <string name="settings_calendar_choose">Choose calendar</string>
+    <string name="settings_calendar_change">Change calendar</string>
+    <string name="settings_calendar_stop">Stop copying</string>
+    <string name="settings_calendar_none">No calendars on this phone can be written to.</string>
+    <string name="settings_calendar_failed">Calendar could not be updated</string>
+    <string name="settings_calendar_permission_denied">Calendar access is needed to copy the meal plan</string>
     <string name="settings_examples_title">Example recipes</string>
     <string name="settings_examples_description">Adds a few detailed recipes tagged \"Example\". Adding them again restores the originals.</string>
     <string name="settings_examples_add">Add example recipes</string>
@@ -53,6 +74,30 @@
     <string name="recipe_attachment_pdf">PDF</string>
 
     <string name="recipe_detail_back">Back</string>
+
+    <string name="recipe_list_meal_plan">Meal plan</string>
+    <string name="meal_type_breakfast">Breakfast</string>
+    <string name="meal_type_lunch">Lunch</string>
+    <string name="meal_type_dinner">Dinner</string>
+    <string name="meal_plan_title">Meal plan</string>
+    <string name="meal_plan_today">Today, %1$s</string>
+    <string name="meal_plan_tomorrow">Tomorrow, %1$s</string>
+    <string name="meal_plan_grocery_day">🛒 Groceries</string>
+    <string name="meal_plan_add_meal">+ %1$s</string>
+    <string name="meal_plan_change">Change</string>
+    <string name="meal_plan_deleted_recipe">(deleted recipe)</string>
+    <string name="meal_plan_pick_title">%1$s, %2$s</string>
+    <string name="meal_plan_calendar_on">Copied to your calendar \"%1$s\".</string>
+    <string name="meal_plan_calendar_off">Calendar sync is off. Turn it on in Settings.</string>
+    <string name="meal_plan_calendar_failed">Couldn\'t update the calendar. Check calendar access in Settings.</string>
+    <string name="meal_plan_event_meal">%1$s: %2$s</string>
+    <string name="meal_plan_add_groceries">+ Add ingredients until next grocery day</string>
+    <string name="meal_plan_groceries_none">No meals planned until the next grocery day</string>
+    <plurals name="meal_plan_groceries_added">
+        <item quantity="one">Added %1$d ingredients from %2$d meal to the shopping list</item>
+        <item quantity="other">Added %1$d ingredients from %2$d meals to the shopping list</item>
+    </plurals>
+    <string name="meal_plan_event_grocery">🛒 Grocery shopping</string>
     <string name="recipe_detail_method">Method</string>
     <string name="recipe_detail_servings_less">−</string>
     <string name="recipe_detail_servings_more">+</string>

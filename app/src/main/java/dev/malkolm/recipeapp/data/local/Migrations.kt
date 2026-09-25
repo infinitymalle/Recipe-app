@@ -36,6 +36,20 @@ val MIGRATION_3_4 =
         }
     }
 
+/** Adds `plan_entries`: the meal planner's planned recipes and grocery days. No existing data touched. */
+val MIGRATION_4_5 =
+    object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `plan_entries` (" +
+                    "`id` TEXT NOT NULL, `epochDay` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                    "`mealType` TEXT, `recipeId` TEXT, `calendarEventId` INTEGER, " +
+                    "`updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_plan_entries_epochDay` ON `plan_entries` (`epochDay`)")
+        }
+    }
+
 /**
  * Every database migration, in order.
  *
@@ -44,4 +58,4 @@ val MIGRATION_3_4 =
  * The app never falls back to deleting the database: her recipes must survive every update.
  * See docs/database.md for the step-by-step.
  */
-val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
