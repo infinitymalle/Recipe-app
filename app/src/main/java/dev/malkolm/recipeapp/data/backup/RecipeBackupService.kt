@@ -111,7 +111,10 @@ constructor(
                     is BackupAttachment.Text -> attachment.copy(id = idGenerator.newId())
 
                     is BackupAttachment.Link ->
-                        attachment.copy(id = idGenerator.newId(), thumbnailPath = attachment.thumbnailPath?.let(movePath))
+                        attachment.copy(
+                            id = idGenerator.newId(),
+                            thumbnailPath = attachment.thumbnailPath?.let(movePath)
+                        )
 
                     is BackupAttachment.Image ->
                         attachment.copy(id = idGenerator.newId(), filePath = movePath(attachment.filePath))

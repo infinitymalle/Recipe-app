@@ -36,7 +36,11 @@ class ImportRecipeViewModelTest {
 
         val destinationRepo = FakeRecipeRepository()
         val importService =
-            RecipeBackupService(ApplicationProvider.getApplicationContext(), destinationRepo, SequentialIdGenerator("copy"))
+            RecipeBackupService(
+                ApplicationProvider.getApplicationContext(),
+                destinationRepo,
+                SequentialIdGenerator("copy")
+            )
         val viewModel = ImportRecipeViewModel(handleFor(sharedUri.toString()), importService)
 
         val state = viewModel.uiState.first { it !is ImportRecipeUiState.Loading }
