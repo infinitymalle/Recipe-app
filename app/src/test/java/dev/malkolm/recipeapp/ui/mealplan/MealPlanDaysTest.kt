@@ -88,6 +88,14 @@ class MealPlanDaysTest {
     }
 
     @Test
+    fun `weeks start on Monday`() {
+        assertEquals(monday, weekStart(monday))
+        assertEquals(monday, weekStart(monday.plusDays(3)))
+        assertEquals(monday, weekStart(monday.plusDays(6)))
+        assertEquals(monday.plusDays(7), weekStart(monday.plusDays(7)))
+    }
+
+    @Test
     fun `meals per day adds lunch, then breakfast`() {
         assertEquals(listOf(MealType.DINNER), MealType.activeFor(1))
         assertEquals(listOf(MealType.LUNCH, MealType.DINNER), MealType.activeFor(2))

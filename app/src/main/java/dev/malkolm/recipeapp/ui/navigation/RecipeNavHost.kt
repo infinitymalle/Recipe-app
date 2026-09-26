@@ -2,15 +2,21 @@ package dev.malkolm.recipeapp.ui.navigation
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -30,10 +36,10 @@ import dev.malkolm.recipeapp.ui.settings.SettingsScreen
 import dev.malkolm.recipeapp.ui.shoppinglist.ShoppingListScreen
 
 /** The bottom tabs. A tab whose [feature] is switched off is not shown. */
-private enum class Tab(val route: Any, val labelRes: Int, val icon: String, val feature: Feature?) {
-    RECIPES(RecipeListRoute, R.string.tab_recipes, "📖", null),
-    PLAN(MealPlanRoute, R.string.tab_plan, "📅", Feature.MEAL_PLANNER),
-    SHOPPING(ShoppingListRoute, R.string.tab_shopping, "🛒", Feature.SHOPPING_LIST)
+private enum class Tab(val route: Any, val labelRes: Int, val feature: Feature?) {
+    RECIPES(RecipeListRoute, R.string.tab_recipes, null),
+    PLAN(MealPlanRoute, R.string.tab_plan, Feature.MEAL_PLANNER),
+    SHOPPING(ShoppingListRoute, R.string.tab_shopping, Feature.SHOPPING_LIST)
 }
 
 @Composable
@@ -56,22 +62,33 @@ fun RecipeNavHost(startDestination: Any = RecipeListRoute) {
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (currentTab != null && tabs.size > 1) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = tab == currentTab,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    // Standard tab behaviour: one copy of each tab, each keeping its
-                                    // own scroll position, with Recipes at the bottom of the stack.
-                                    popUpTo<RecipeListRoute> { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Text(tab.icon) },
-                            label = { Text(stringResource(tab.labelRes)) }
-                        )
+                // Text-only tabs (Material's navigation bar expects an icon per item).
+                Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
+                    PrimaryTabRow(
+                        selectedTabIndex = tabs.indexOf(currentTab).coerceAtLeast(0),
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.navigationBarsPadding()
+                    ) {
+                        tabs.forEach { tab ->
+                            Tab(
+                                selected = tab == currentTab,
+                                onClick = {
+                                    navController.navigate(tab.route) {
+                                        // Standard tab behaviour: one copy of each tab, each keeping its
+                                        // own scroll position, with Recipes at the bottom of the stack.
+                                        popUpTo<RecipeListRoute> { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                text = {
+                                    Text(stringResource(tab.labelRes), style = MaterialTheme.typography.titleSmall)
+                                },
+                                selectedContentColor = MaterialTheme.colorScheme.primary,
+                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.height(56.dp)
+                            )
+                        }
                     }
                 }
             }

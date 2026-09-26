@@ -13,8 +13,10 @@ import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.domain.repository.ShoppingListRepository
 import dev.malkolm.recipeapp.ui.shoppinglist.shoppingEntriesFrom
 import java.time.Clock
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -62,6 +64,9 @@ constructor(
     clock: Clock
 ) : ViewModel() {
     private val today = clock.instant().atZone(ZoneId.systemDefault()).toLocalDate()
+
+    /** The plan is shown as whole Mon-Sun weeks, starting with the current one. */
+    private val firstDay = weekStart(today)
     private val calendarSyncFailed = MutableStateFlow(false)
 
     private val _groceriesAdded = MutableSharedFlow<GroceriesAdded>(extraBufferCapacity = 1)
@@ -70,10 +75,10 @@ constructor(
     private val days =
         combine(settings.weeksAhead, settings.mealsPerDay) { weeks, meals -> weeks to meals }
             .flatMapLatest { (weeks, mealsPerDay) ->
-                val lastDay = today.plusDays(weeks * 7L - 1)
+                val lastDay = firstDay.plusDays(weeks * 7L - 1)
                 val activeMeals = MealType.activeFor(mealsPerDay)
-                mealPlanRepository.observePlan(today, lastDay).map { entries ->
-                    daysFrom(today, lastDay, entries, activeMeals)
+                mealPlanRepository.observePlan(firstDay, lastDay).map { entries ->
+                    daysFrom(firstDay, lastDay, entries, activeMeals)
                 }
             }
 
@@ -117,7 +122,7 @@ constructor(
      */
     fun addGroceriesFor(date: LocalDate) {
         viewModelScope.launch {
-            val lastDay = today.plusDays(settings.weeksAhead.value * 7L - 1)
+            val lastDay = firstDay.plusDays(settings.weeksAhead.value * 7L - 1)
             val entries = mealPlanRepository.observePlan(date, maxOf(date, lastDay)).first()
             val meals = mealsForGroceryTrip(date, entries, MealType.activeFor(settings.mealsPerDay.value))
             val ingredients =
@@ -161,6 +166,9 @@ internal fun mealsForGroceryTrip(
         .filter { it.mealType in activeMeals && it.recipeTitle != null }
         .sortedWith(compareBy({ it.date }, { it.mealType }))
 }
+
+/** The Monday of [date]'s week (the week runs Monday to Sunday). */
+internal fun weekStart(date: LocalDate): LocalDate = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
 /** Every day from [first] to [last], with each active meal's plan and whether it is a grocery day. */
 internal fun daysFrom(
