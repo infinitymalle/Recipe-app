@@ -37,4 +37,6 @@ constructor(
     override suspend fun deleteItem(id: String) = dao.markDeleted(id, clock.millis())
 
     override suspend fun clearChecked() = dao.markCheckedDeleted(clock.millis())
+
+    override suspend fun clearAll() = dao.markAllDeleted(clock.millis())
 }

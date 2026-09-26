@@ -27,4 +27,7 @@ interface ShoppingListDao {
 
     @Query("UPDATE shopping_list_items SET deletedAt = :at, updatedAt = :at WHERE isChecked = 1 AND deletedAt IS NULL")
     suspend fun markCheckedDeleted(at: Long)
+
+    @Query("UPDATE shopping_list_items SET deletedAt = :at, updatedAt = :at WHERE deletedAt IS NULL")
+    suspend fun markAllDeleted(at: Long)
 }

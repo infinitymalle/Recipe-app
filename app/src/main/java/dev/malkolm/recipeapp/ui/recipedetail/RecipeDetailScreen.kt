@@ -56,11 +56,13 @@ import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.data.AppFiles
 import dev.malkolm.recipeapp.domain.model.Attachment
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.Recipe
 import dev.malkolm.recipeapp.domain.model.Tag
 import dev.malkolm.recipeapp.domain.model.scaleAmount
 import dev.malkolm.recipeapp.domain.model.stepsFrom
 import dev.malkolm.recipeapp.ui.components.BlurredImageBackground
+import dev.malkolm.recipeapp.ui.components.LocalEnabledFeatures
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
 import dev.malkolm.recipeapp.ui.recipeedit.ingredientItemsFrom
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
@@ -254,8 +256,10 @@ private fun RecipeDetailBody(recipe: Recipe, onCookRecipe: () -> Unit, modifier:
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Button(onClick = onCookRecipe, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.recipe_detail_cook))
+            if (Feature.COOK_MODE in LocalEnabledFeatures.current) {
+                Button(onClick = onCookRecipe, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.recipe_detail_cook))
+                }
             }
         }
         // Every section sits on a solid card so it stays readable over the blurred recipe photo.

@@ -48,8 +48,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.malkolm.recipeapp.R
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.ThemeMode
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
+import dev.malkolm.recipeapp.ui.components.LocalEnabledFeatures
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.io.File
 import kotlin.math.roundToInt
@@ -121,6 +123,7 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
         onImport = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
         snackbarHostState = snackbarHostState,
         modifier = modifier,
+        featuresSection = { FeatureSettings(viewModel) },
         plannerSection = {
             MealPlannerSettings(viewModel) { message -> scope.launch { snackbarHostState.showSnackbar(message) } }
         }
@@ -146,7 +149,8 @@ fun SettingsContent(
     onImport: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    plannerSection: @Composable () -> Unit = {}
+    plannerSection: @Composable () -> Unit = {},
+    featuresSection: @Composable () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier,
@@ -172,7 +176,14 @@ fun SettingsContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             when (section) {
-                null -> SettingsSection.entries.forEach { SectionRow(it) { onOpenSection(it) } }
+                null -> {
+                    val enabled = LocalEnabledFeatures.current
+                    SettingsSection.entries
+                        .filter { it.feature == null || it.feature in enabled }
+                        .forEach { SectionRow(it) { onOpenSection(it) } }
+                }
+
+                SettingsSection.FEATURES -> featuresSection()
 
                 SettingsSection.MEAL_PLANNER -> plannerSection()
 
@@ -195,44 +206,47 @@ fun SettingsContent(
                         steps = blurRange.last - blurRange.first - 1
                     )
 
-                    HorizontalDivider()
-                    Text(
-                        stringResource(R.string.settings_shopping_picture_title),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    // Doubles as a live preview of the blur slider above.
-                    if (shoppingListImagePath != null) {
-                        AsyncImage(
-                            model = File(LocalContext.current.filesDir, shoppingListImagePath),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .blur(backgroundBlur.dp)
+                    // The shopping list's own picture; hidden with the shopping list.
+                    if (Feature.SHOPPING_LIST in LocalEnabledFeatures.current) {
+                        HorizontalDivider()
+                        Text(
+                            stringResource(R.string.settings_shopping_picture_title),
+                            style = MaterialTheme.typography.titleSmall
                         )
-                    } else {
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-                            Text(stringResource(R.string.settings_shopping_picture_none))
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onChooseShoppingListImage, modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(
-                                    if (shoppingListImagePath == null) {
-                                        R.string.settings_shopping_picture_choose
-                                    } else {
-                                        R.string.settings_shopping_picture_change
-                                    }
-                                )
-                            )
-                        }
+                        // Doubles as a live preview of the blur slider above.
                         if (shoppingListImagePath != null) {
-                            OutlinedButton(onClick = onRemoveShoppingListImage, modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.recipe_edit_remove_attachment))
+                            AsyncImage(
+                                model = File(LocalContext.current.filesDir, shoppingListImagePath),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .blur(backgroundBlur.dp)
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                                Text(stringResource(R.string.settings_shopping_picture_none))
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = onChooseShoppingListImage, modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(
+                                        if (shoppingListImagePath == null) {
+                                            R.string.settings_shopping_picture_choose
+                                        } else {
+                                            R.string.settings_shopping_picture_change
+                                        }
+                                    )
+                                )
+                            }
+                            if (shoppingListImagePath != null) {
+                                OutlinedButton(onClick = onRemoveShoppingListImage, modifier = Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.recipe_edit_remove_attachment))
+                                }
                             }
                         }
                     }
@@ -260,9 +274,10 @@ fun SettingsContent(
 }
 
 /** The groups the settings are split into, each opened as its own page. */
-enum class SettingsSection(val titleRes: Int, val summaryRes: Int) {
+enum class SettingsSection(val titleRes: Int, val summaryRes: Int, val feature: Feature? = null) {
+    FEATURES(R.string.settings_section_features, R.string.settings_section_features_summary),
     APPEARANCE(R.string.settings_section_appearance, R.string.settings_section_appearance_summary),
-    MEAL_PLANNER(R.string.settings_planner_title, R.string.settings_section_planner_summary),
+    MEAL_PLANNER(R.string.settings_planner_title, R.string.settings_section_planner_summary, Feature.MEAL_PLANNER),
     RECIPES_AND_BACKUP(R.string.settings_section_data, R.string.settings_section_data_summary)
 }
 

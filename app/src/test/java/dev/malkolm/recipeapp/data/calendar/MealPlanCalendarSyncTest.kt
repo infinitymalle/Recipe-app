@@ -6,10 +6,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.malkolm.recipeapp.data.local.RecipeDatabase
 import dev.malkolm.recipeapp.data.repository.RoomMealPlanRepository
 import dev.malkolm.recipeapp.data.repository.RoomRecipeRepository
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.MealType
 import dev.malkolm.recipeapp.domain.model.RecipeDraft
 import dev.malkolm.recipeapp.domain.repository.SelectedCalendar
 import dev.malkolm.recipeapp.testutil.FakeCalendarGateway
+import dev.malkolm.recipeapp.testutil.FakeFeatureSettingsRepository
 import dev.malkolm.recipeapp.testutil.FakePlannerSettingsRepository
 import dev.malkolm.recipeapp.testutil.MutableClock
 import dev.malkolm.recipeapp.testutil.SequentialIdGenerator
@@ -36,6 +38,7 @@ class MealPlanCalendarSyncTest {
     private lateinit var clock: MutableClock
     private lateinit var today: LocalDate
     private val settings = FakePlannerSettingsRepository()
+    private val features = FakeFeatureSettingsRepository()
     private val calendar = FakeCalendarGateway()
     private lateinit var plan: RoomMealPlanRepository
     private lateinit var recipes: RoomRecipeRepository
@@ -58,6 +61,7 @@ class MealPlanCalendarSyncTest {
                 ApplicationProvider.getApplicationContext(),
                 database.planDao(),
                 settings,
+                features,
                 calendar,
                 clock
             )
@@ -182,6 +186,21 @@ class MealPlanCalendarSyncTest {
 
         sync.switchCalendar(null)
         assertTrue(calendar.events.isEmpty())
+    }
+
+    @Test
+    fun `switching the meal planner off removes its events, and switching it on brings them back`() = runTest {
+        recipe("r1", "Pancakes")
+        plan.setMeal(today, MealType.DINNER, "r1")
+        sync.sync()
+
+        features.setSwitchedOn(Feature.MEAL_PLANNER, false)
+        sync.sync()
+        assertTrue(calendar.events.isEmpty())
+
+        features.setSwitchedOn(Feature.MEAL_PLANNER, true)
+        sync.sync()
+        assertEquals(listOf("Dinner: Pancakes"), calendar.eventsIn(personal.id).map { it.title })
     }
 
     @Test

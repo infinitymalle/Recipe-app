@@ -42,7 +42,10 @@ private val DarkColors = darkColorScheme(
     onSurface = Color(0xFFF0DEE1),
     surfaceVariant = Color(0xFF524347),
     onSurfaceVariant = Color(0xFFD6C1C5),
-    outline = Color(0xFF9F8C90)
+    outline = Color(0xFF9F8C90),
+    // Material's default dark error is a pale salmon that reads as pink next to this palette; a
+    // clear red keeps destructive actions (e.g. "Yes" to clearing the shopping list) unmistakable.
+    error = Color(0xFFFF5A5F)
 )
 
 /**

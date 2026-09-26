@@ -29,8 +29,10 @@ import androidx.core.view.WindowCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.malkolm.recipeapp.data.AppFiles
 import dev.malkolm.recipeapp.domain.model.ThemeMode
+import dev.malkolm.recipeapp.domain.repository.FeatureSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.ThemeSettingsRepository
 import dev.malkolm.recipeapp.ui.components.LocalBackgroundBlur
+import dev.malkolm.recipeapp.ui.components.LocalEnabledFeatures
 import dev.malkolm.recipeapp.ui.navigation.ImportRecipeRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeEditRoute
 import dev.malkolm.recipeapp.ui.navigation.RecipeListRoute
@@ -43,6 +45,9 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject
     lateinit var themeSettingsRepository: ThemeSettingsRepository
+
+    @Inject
+    lateinit var featureSettingsRepository: FeatureSettingsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,8 +62,12 @@ class MainActivity : ComponentActivity() {
                     ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 }
             val backgroundBlur by themeSettingsRepository.backgroundBlur.collectAsState()
+            val enabledFeatures by featureSettingsRepository.enabled.collectAsState()
             RecipeAppTheme(darkTheme = darkTheme) {
-                CompositionLocalProvider(LocalBackgroundBlur provides backgroundBlur.dp) {
+                CompositionLocalProvider(
+                    LocalBackgroundBlur provides backgroundBlur.dp,
+                    LocalEnabledFeatures provides enabledFeatures
+                ) {
                     Box {
                         RecipeNavHost(startDestination = startDestination)
                         StatusBarStrip()

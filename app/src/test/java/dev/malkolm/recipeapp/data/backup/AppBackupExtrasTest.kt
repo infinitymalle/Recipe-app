@@ -16,6 +16,7 @@ import dev.malkolm.recipeapp.domain.model.RecipeDraft
 import dev.malkolm.recipeapp.domain.model.ThemeMode
 import dev.malkolm.recipeapp.domain.repository.SelectedCalendar
 import dev.malkolm.recipeapp.testutil.FakeCalendarGateway
+import dev.malkolm.recipeapp.testutil.FakeFeatureSettingsRepository
 import dev.malkolm.recipeapp.testutil.FakePlannerSettingsRepository
 import dev.malkolm.recipeapp.testutil.FakeThemeSettingsRepository
 import dev.malkolm.recipeapp.testutil.MutableClock
@@ -61,7 +62,14 @@ class AppBackupExtrasTest {
                     theme,
                     planner,
                     RecipeImageStorage(context),
-                    MealPlanCalendarSync(context, database.planDao(), planner, calendar, clock),
+                    MealPlanCalendarSync(
+                        context,
+                        database.planDao(),
+                        planner,
+                        FakeFeatureSettingsRepository(),
+                        calendar,
+                        clock
+                    ),
                     clock
                 )
             )

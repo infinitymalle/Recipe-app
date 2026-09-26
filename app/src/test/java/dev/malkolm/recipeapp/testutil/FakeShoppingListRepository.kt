@@ -43,4 +43,8 @@ class FakeShoppingListRepository(
     override suspend fun clearChecked() {
         items.update { list -> list.filterNot { it.isChecked } }
     }
+
+    override suspend fun clearAll() {
+        items.value = emptyList()
+    }
 }

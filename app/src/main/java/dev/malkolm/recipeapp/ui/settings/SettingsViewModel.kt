@@ -11,8 +11,10 @@ import dev.malkolm.recipeapp.data.calendar.DeviceCalendar
 import dev.malkolm.recipeapp.data.calendar.MealPlanCalendarSync
 import dev.malkolm.recipeapp.data.examples.ExampleRecipes
 import dev.malkolm.recipeapp.domain.IdGenerator
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.MealType
 import dev.malkolm.recipeapp.domain.model.ThemeMode
+import dev.malkolm.recipeapp.domain.repository.FeatureSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.PlannerSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
 import dev.malkolm.recipeapp.domain.repository.SelectedCalendar
@@ -35,8 +37,17 @@ constructor(
     private val idGenerator: IdGenerator,
     private val plannerSettings: PlannerSettingsRepository,
     private val calendarSync: MealPlanCalendarSync,
-    private val calendarGateway: CalendarGateway
+    private val calendarGateway: CalendarGateway,
+    private val featureSettings: FeatureSettingsRepository
 ) : ViewModel() {
+    val featuresSwitchedOn: StateFlow<Set<Feature>> = featureSettings.switchedOn
+
+    fun setFeatureSwitchedOn(feature: Feature, on: Boolean) {
+        featureSettings.setSwitchedOn(feature, on)
+        // The planner's calendar events leave (or come back) with the planner.
+        if (feature == Feature.MEAL_PLANNER) syncCalendar()
+    }
+
     val themeMode: StateFlow<ThemeMode> = themeSettingsRepository.themeMode
     val backgroundBlur: StateFlow<Int> = themeSettingsRepository.backgroundBlur
     val shoppingListImagePath: StateFlow<String?> = themeSettingsRepository.shoppingListImagePath

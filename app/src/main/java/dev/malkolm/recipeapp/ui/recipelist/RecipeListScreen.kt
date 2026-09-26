@@ -58,8 +58,6 @@ fun RecipeListScreen(
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenShoppingList: () -> Unit,
-    onOpenMealPlan: () -> Unit,
     viewModel: RecipeListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,8 +81,6 @@ fun RecipeListScreen(
         onOpenRecipe = onOpenRecipe,
         onAddRecipe = onAddRecipe,
         onOpenSettings = onOpenSettings,
-        onOpenShoppingList = onOpenShoppingList,
-        onOpenMealPlan = onOpenMealPlan,
         onSearchQueryChange = viewModel::updateSearchQuery,
         onSelectTag = viewModel::selectTag
     )
@@ -99,8 +95,6 @@ fun RecipeListContent(
     onOpenRecipe: (String) -> Unit,
     onAddRecipe: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenShoppingList: () -> Unit,
-    onOpenMealPlan: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectTag: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -130,12 +124,6 @@ fun RecipeListContent(
             },
             floatingActionButton = {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ExtendedFloatingActionButton(onClick = onOpenMealPlan) {
-                        Text(stringResource(R.string.recipe_list_meal_plan))
-                    }
-                    ExtendedFloatingActionButton(onClick = onOpenShoppingList) {
-                        Text(stringResource(R.string.recipe_list_shopping_list))
-                    }
                     ExtendedFloatingActionButton(onClick = onAddRecipe) {
                         Text(stringResource(R.string.recipe_list_add))
                     }
@@ -257,8 +245,6 @@ private fun RecipeListContentEmptyPreview() {
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
-            onOpenShoppingList = {},
-            onOpenMealPlan = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )
@@ -292,8 +278,6 @@ private fun RecipeListContentPreview() {
             onOpenRecipe = {},
             onAddRecipe = {},
             onOpenSettings = {},
-            onOpenShoppingList = {},
-            onOpenMealPlan = {},
             onSearchQueryChange = {},
             onSelectTag = {}
         )

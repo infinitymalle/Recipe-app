@@ -37,8 +37,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.data.calendar.labelRes
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.MealType
 import dev.malkolm.recipeapp.domain.model.PlanEntry
+import dev.malkolm.recipeapp.ui.components.LocalEnabledFeatures
 import dev.malkolm.recipeapp.ui.components.PickRecipeDialog
 import dev.malkolm.recipeapp.ui.theme.RecipeAppTheme
 import java.time.LocalDate
@@ -46,7 +48,7 @@ import java.time.format.DateTimeFormatter
 
 /** Stateful entry point: connects the ViewModel to the stateless [MealPlanContent]. */
 @Composable
-fun MealPlanScreen(onBack: () -> Unit, onOpenRecipe: (String) -> Unit, viewModel: MealPlanViewModel = hiltViewModel()) {
+fun MealPlanScreen(onOpenRecipe: (String) -> Unit, viewModel: MealPlanViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
@@ -70,7 +72,6 @@ fun MealPlanScreen(onBack: () -> Unit, onOpenRecipe: (String) -> Unit, viewModel
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         onAddGroceries = viewModel::addGroceriesFor,
-        onBack = onBack,
         onOpenRecipe = onOpenRecipe,
         onSetMeal = viewModel::setMeal,
         onRemoveMeal = viewModel::removeMeal,
@@ -86,7 +87,6 @@ private data class PickingFor(val date: LocalDate, val mealType: MealType)
 @Composable
 fun MealPlanContent(
     uiState: MealPlanUiState,
-    onBack: () -> Unit,
     onOpenRecipe: (String) -> Unit,
     onSetMeal: (LocalDate, MealType, String) -> Unit,
     onRemoveMeal: (LocalDate, MealType) -> Unit,
@@ -102,10 +102,7 @@ fun MealPlanContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.meal_plan_title)) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
-                }
+                title = { Text(stringResource(R.string.meal_plan_title)) }
             )
         }
     ) { innerPadding ->
@@ -187,7 +184,8 @@ private fun DayCard(
                     label = { Text(stringResource(R.string.meal_plan_grocery_day)) }
                 )
             }
-            if (day.isGroceryDay) {
+            // Needs the shopping list too; hidden when that feature is switched off.
+            if (day.isGroceryDay && Feature.GROCERY_TO_SHOPPING_LIST in LocalEnabledFeatures.current) {
                 TextButton(onClick = onAddGroceries) { Text(stringResource(R.string.meal_plan_add_groceries)) }
             }
             day.meals.forEach { slot ->
@@ -258,7 +256,6 @@ private fun MealPlanContentPreview() {
                         ),
                     calendarName = "Personal"
                 ),
-            onBack = {},
             onOpenRecipe = {},
             onSetMeal = { _, _, _ -> },
             onRemoveMeal = { _, _ -> },

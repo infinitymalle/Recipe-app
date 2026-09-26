@@ -6,7 +6,6 @@
     <string name="recipe_list_add">Add recipe</string>
     <string name="recipe_list_settings">⚙</string>
     <string name="recipe_list_search_label">Search recipes</string>
-    <string name="recipe_list_shopping_list">Shopping list</string>
 
     <string name="shopping_list_title">Shopping list</string>
     <string name="shopping_list_empty">Your shopping list is empty</string>
@@ -14,6 +13,13 @@
     <string name="shopping_list_add_from_recipe">+ Add from recipe</string>
     <string name="shopping_list_item_name">Item</string>
     <string name="shopping_list_item_amount">Amount (optional)</string>
+    <string name="shopping_list_clear_all">Clear list</string>
+    <string name="shopping_list_clear_all_title">Clear shopping list?</string>
+    <plurals name="shopping_list_clear_all_message">
+        <item quantity="one">Are you sure? This removes %1$d item from the list.</item>
+        <item quantity="other">Are you sure? This removes all %1$d items from the list.</item>
+    </plurals>
+    <string name="shopping_list_clear_all_yes">Yes</string>
     <string name="shopping_list_clear_checked">Clear checked</string>
     <string name="shopping_list_pick_recipe_title">Add ingredients from…</string>
     <string name="shopping_list_pick_recipe_empty">No recipes yet</string>
@@ -37,6 +43,16 @@
     <string name="settings_shopping_picture_none">No picture chosen yet.</string>
     <string name="settings_shopping_picture_choose">Choose picture</string>
     <string name="settings_shopping_picture_change">Change picture</string>
+    <string name="settings_section_features">Features</string>
+    <string name="settings_section_features_summary">Turn the meal planner, shopping list and cook mode on or off</string>
+    <string name="settings_features_intro">Switched-off features are hidden. Nothing is deleted: switch them back on and everything is still there.</string>
+    <string name="settings_feature_planner">Meal planner</string>
+    <string name="settings_feature_planner_description">Plan meals and grocery days. Switching it off also removes its upcoming calendar events.</string>
+    <string name="settings_feature_shopping">Shopping list</string>
+    <string name="settings_feature_shopping_description">A list to shop from, filled by hand or from recipes.</string>
+    <string name="settings_feature_cook">Cook mode</string>
+    <string name="settings_feature_cook_description">Step-by-step cooking with timers.</string>
+    <string name="settings_feature_grocery_note">Adding ingredients from a grocery day needs both the meal planner and the shopping list.</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_appearance_summary">Light or dark theme, background blur, shopping list picture</string>
     <string name="settings_section_planner_summary">Weeks shown, meals per day, times, calendar</string>
@@ -75,7 +91,9 @@
 
     <string name="recipe_detail_back">Back</string>
 
-    <string name="recipe_list_meal_plan">Meal plan</string>
+    <string name="tab_recipes">Recipes</string>
+    <string name="tab_plan">Plan</string>
+    <string name="tab_shopping">Shopping</string>
     <string name="meal_type_breakfast">Breakfast</string>
     <string name="meal_type_lunch">Lunch</string>
     <string name="meal_type_dinner">Dinner</string>

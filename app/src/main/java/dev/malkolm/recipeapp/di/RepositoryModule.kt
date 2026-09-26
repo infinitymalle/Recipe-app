@@ -13,9 +13,11 @@ import dev.malkolm.recipeapp.data.repository.RoomMealPlanRepository
 import dev.malkolm.recipeapp.data.repository.RoomRecipeRepository
 import dev.malkolm.recipeapp.data.repository.RoomShoppingListRepository
 import dev.malkolm.recipeapp.data.repository.RoomTagRepository
+import dev.malkolm.recipeapp.data.repository.SharedPreferencesFeatureSettingsRepository
 import dev.malkolm.recipeapp.data.repository.SharedPreferencesPlannerSettingsRepository
 import dev.malkolm.recipeapp.data.repository.SharedPreferencesThemeSettingsRepository
 import dev.malkolm.recipeapp.domain.IdGenerator
+import dev.malkolm.recipeapp.domain.repository.FeatureSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.MealPlanRepository
 import dev.malkolm.recipeapp.domain.repository.PlannerSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.RecipeRepository
@@ -55,6 +57,11 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindCalendarGateway(impl: AndroidCalendarGateway): CalendarGateway
+
+    @Binds
+    abstract fun bindFeatureSettingsRepository(
+        impl: SharedPreferencesFeatureSettingsRepository
+    ): FeatureSettingsRepository
 
     @Binds
     abstract fun bindBackupExtras(impl: AppBackupExtras): BackupExtras

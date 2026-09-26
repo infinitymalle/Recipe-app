@@ -68,6 +68,19 @@ class ShoppingListViewModelTest {
     }
 
     @Test
+    fun `clearing the list removes every item`() = runTest {
+        val vm =
+            ShoppingListViewModel(FakeShoppingListRepository(), FakeRecipeRepository(), FakeThemeSettingsRepository())
+        vm.addItem("Eggs", "6")
+        vm.addItem("Flour", "2 cups")
+        vm.uiState.first { it.items.size == 2 }
+
+        vm.clearAll()
+
+        assertTrue(vm.uiState.first { it.items.isEmpty() }.items.isEmpty())
+    }
+
+    @Test
     fun `adding from a recipe merges its ingredient entries, skipping section headings`() = runTest {
         val recipeRepository = FakeRecipeRepository()
         recipeRepository.saveRecipe(

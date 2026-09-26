@@ -21,4 +21,7 @@ interface ShoppingListRepository {
 
     /** Removes every checked-off item, e.g. after a shopping trip. */
     suspend fun clearChecked()
+
+    /** Removes every item, checked or not. */
+    suspend fun clearAll()
 }

@@ -10,6 +10,7 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -101,6 +102,18 @@ class RoomShoppingListRepositoryTest {
         assertEquals(listOf("Milk"), repository.observeItems().first().map { it.name })
         assertEquals(2, allRows().size)
         assertNull(allRows().single { it.id != eggs.id }.deletedAt)
+    }
+
+    @Test
+    fun `clearing the whole list soft-deletes every item, checked or not`() = runTest {
+        repository.addItem("Milk", null)
+        repository.addItem("Eggs", null)
+        repository.setChecked(repository.observeItems().first().first().id, true)
+
+        repository.clearAll()
+
+        assertTrue(repository.observeItems().first().isEmpty())
+        assertEquals(2, allRows().count { it.deletedAt != null })
     }
 
     @Test

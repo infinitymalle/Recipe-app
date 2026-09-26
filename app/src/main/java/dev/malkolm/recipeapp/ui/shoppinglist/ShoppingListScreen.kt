@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,16 +50,16 @@ import java.time.Instant
 
 /** Stateful entry point: connects the ViewModel to the stateless [ShoppingListContent]. */
 @Composable
-fun ShoppingListScreen(onBack: () -> Unit, viewModel: ShoppingListViewModel = hiltViewModel()) {
+fun ShoppingListScreen(viewModel: ShoppingListViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ShoppingListContent(
         uiState = uiState,
-        onBack = onBack,
         onAddItem = viewModel::addItem,
         onAddFromRecipe = viewModel::addFromRecipe,
         onSetChecked = viewModel::setChecked,
         onRemoveItem = viewModel::removeItem,
-        onClearChecked = viewModel::clearChecked
+        onClearChecked = viewModel::clearChecked,
+        onClearAll = viewModel::clearAll
     )
 }
 
@@ -67,15 +68,16 @@ fun ShoppingListScreen(onBack: () -> Unit, viewModel: ShoppingListViewModel = hi
 @Composable
 fun ShoppingListContent(
     uiState: ShoppingListUiState,
-    onBack: () -> Unit,
     onAddItem: (name: String, amount: String) -> Unit,
     onAddFromRecipe: (recipeId: String) -> Unit,
     onSetChecked: (id: String, checked: Boolean) -> Unit,
     onRemoveItem: (String) -> Unit,
     onClearChecked: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClearAll: () -> Unit = {}
 ) {
     var showAddItem by remember { mutableStateOf(false) }
+    var showClearAllConfirm by remember { mutableStateOf(false) }
     var showPickRecipe by remember { mutableStateOf(false) }
 
     BlurredImageBackground(imagePath = uiState.backgroundImagePath, modifier = modifier) {
@@ -85,13 +87,15 @@ fun ShoppingListContent(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(R.string.shopping_list_title)) },
-                    navigationIcon = {
-                        TextButton(onClick = onBack) { Text(stringResource(R.string.recipe_detail_back)) }
-                    },
                     actions = {
                         if (uiState.items.any { it.isChecked }) {
                             TextButton(onClick = onClearChecked) {
                                 Text(stringResource(R.string.shopping_list_clear_checked))
+                            }
+                        }
+                        if (uiState.items.isNotEmpty()) {
+                            TextButton(onClick = { showClearAllConfirm = true }) {
+                                Text(stringResource(R.string.shopping_list_clear_all))
                             }
                         }
                     }
@@ -148,6 +152,37 @@ fun ShoppingListContent(
                 }
             }
         }
+    }
+
+    if (showClearAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearAllConfirm = false },
+            title = { Text(stringResource(R.string.shopping_list_clear_all_title)) },
+            text = {
+                Text(
+                    pluralStringResource(
+                        R.plurals.shopping_list_clear_all_message,
+                        uiState.items.size,
+                        uiState.items.size
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearAllConfirm = false
+                        onClearAll()
+                    }
+                ) {
+                    Text(stringResource(R.string.shopping_list_clear_all_yes), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAllConfirm = false }) {
+                    Text(stringResource(R.string.recipe_edit_dialog_cancel))
+                }
+            }
+        )
     }
 
     if (showAddItem) {
@@ -254,7 +289,6 @@ private fun ShoppingListContentPreview() {
                             )
                         )
                 ),
-            onBack = {},
             onAddItem = { _, _ -> },
             onAddFromRecipe = {},
             onSetChecked = { _, _ -> },

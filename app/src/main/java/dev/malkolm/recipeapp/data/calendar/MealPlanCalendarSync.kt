@@ -6,7 +6,9 @@ import dev.malkolm.recipeapp.R
 import dev.malkolm.recipeapp.data.local.dao.PlanDao
 import dev.malkolm.recipeapp.data.local.dao.PlanEntryRow
 import dev.malkolm.recipeapp.data.local.entity.PlanEntryEntity
+import dev.malkolm.recipeapp.domain.model.Feature
 import dev.malkolm.recipeapp.domain.model.MealType
+import dev.malkolm.recipeapp.domain.repository.FeatureSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.PlannerSettingsRepository
 import dev.malkolm.recipeapp.domain.repository.SelectedCalendar
 import dev.malkolm.recipeapp.ui.recipeedit.IngredientListItem
@@ -40,6 +42,7 @@ constructor(
     @ApplicationContext private val context: Context,
     private val dao: PlanDao,
     private val settings: PlannerSettingsRepository,
+    private val features: FeatureSettingsRepository,
     private val gateway: CalendarGateway,
     private val clock: Clock
 ) {
@@ -65,7 +68,9 @@ constructor(
     }
 
     private suspend fun syncLocked() {
-        val calendar = settings.calendar.value
+        // With the meal planner switched off its events leave the calendar, as if copying were
+        // off; the plan itself is kept, so switching it back on puts them back.
+        val calendar = settings.calendar.value.takeIf { Feature.MEAL_PLANNER in features.enabled.value }
         val zone = ZoneId.systemDefault()
         val today = clock.instant().atZone(zone).toLocalDate()
         val activeMeals = MealType.activeFor(settings.mealsPerDay.value)

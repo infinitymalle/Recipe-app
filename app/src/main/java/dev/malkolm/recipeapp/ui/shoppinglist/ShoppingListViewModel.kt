@@ -58,6 +58,10 @@ constructor(
         viewModelScope.launch { shoppingListRepository.clearChecked() }
     }
 
+    fun clearAll() {
+        viewModelScope.launch { shoppingListRepository.clearAll() }
+    }
+
     /** Parses the recipe's "Recipe" text (ingredient entries only, section headings skipped) and merges it in. */
     fun addFromRecipe(recipeId: String) {
         viewModelScope.launch {

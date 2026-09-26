@@ -1,9 +1,25 @@
 package dev.malkolm.recipeapp.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.malkolm.recipeapp.R
+import dev.malkolm.recipeapp.domain.model.Feature
+import dev.malkolm.recipeapp.ui.components.LocalEnabledFeatures
 import dev.malkolm.recipeapp.ui.cookrecipe.CookRecipeScreen
 import dev.malkolm.recipeapp.ui.importrecipe.ImportRecipeScreen
 import dev.malkolm.recipeapp.ui.mealplan.MealPlanScreen
@@ -13,25 +29,73 @@ import dev.malkolm.recipeapp.ui.recipelist.RecipeListScreen
 import dev.malkolm.recipeapp.ui.settings.SettingsScreen
 import dev.malkolm.recipeapp.ui.shoppinglist.ShoppingListScreen
 
+/** The bottom tabs. A tab whose [feature] is switched off is not shown. */
+private enum class Tab(val route: Any, val labelRes: Int, val icon: String, val feature: Feature?) {
+    RECIPES(RecipeListRoute, R.string.tab_recipes, "📖", null),
+    PLAN(MealPlanRoute, R.string.tab_plan, "📅", Feature.MEAL_PLANNER),
+    SHOPPING(ShoppingListRoute, R.string.tab_shopping, "🛒", Feature.SHOPPING_LIST)
+}
+
 @Composable
 fun RecipeNavHost(startDestination: Any = RecipeListRoute) {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = startDestination) {
+    val enabledFeatures = LocalEnabledFeatures.current
+    val tabs = Tab.entries.filter { it.feature == null || it.feature in enabledFeatures }
+    val destination = navController.currentBackStackEntryAsState().value?.destination
+    val currentTab = Tab.entries.firstOrNull { tab -> destination?.hasRoute(tab.route::class) == true }
+
+    // Fallback: if the tab on screen belongs to a feature that was just switched off, show recipes.
+    LaunchedEffect(currentTab, tabs) {
+        if (currentTab != null && currentTab !in tabs) {
+            navController.navigate(RecipeListRoute) { popUpTo<RecipeListRoute>() }
+        }
+    }
+
+    Scaffold(
+        // The screens inside handle the system bars themselves; this only adds the tab bar.
+        contentWindowInsets = WindowInsets(0),
+        bottomBar = {
+            if (currentTab != null && tabs.size > 1) {
+                NavigationBar {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = tab == currentTab,
+                            onClick = {
+                                navController.navigate(tab.route) {
+                                    // Standard tab behaviour: one copy of each tab, each keeping its
+                                    // own scroll position, with Recipes at the bottom of the stack.
+                                    popUpTo<RecipeListRoute> { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Text(tab.icon) },
+                            label = { Text(stringResource(tab.labelRes)) }
+                        )
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        RecipeNavGraph(navController, startDestination, Modifier.padding(padding).consumeWindowInsets(padding))
+    }
+}
+
+@Composable
+private fun RecipeNavGraph(navController: NavHostController, startDestination: Any, modifier: Modifier) {
+    NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable<RecipeListRoute> {
             RecipeListScreen(
                 onOpenRecipe = { id -> navController.navigate(RecipeDetailRoute(id)) },
                 onAddRecipe = { navController.navigate(RecipeEditRoute()) },
-                onOpenSettings = { navController.navigate(SettingsRoute) },
-                onOpenShoppingList = { navController.navigate(ShoppingListRoute) },
-                onOpenMealPlan = { navController.navigate(MealPlanRoute) }
+                onOpenSettings = { navController.navigate(SettingsRoute) }
             )
         }
         composable<ShoppingListRoute> {
-            ShoppingListScreen(onBack = { navController.popBackStack() })
+            ShoppingListScreen()
         }
         composable<MealPlanRoute> {
             MealPlanScreen(
-                onBack = { navController.popBackStack() },
                 onOpenRecipe = { id -> navController.navigate(RecipeDetailRoute(id)) }
             )
         }

@@ -80,8 +80,6 @@ fun MealPlannerSettings(viewModel: SettingsViewModel, onMessage: (String) -> Uni
             if (results.values.all { it }) showCalendarChoices() else onMessage(permissionDenied)
         }
 
-    Text(stringResource(R.string.settings_planner_title), style = MaterialTheme.typography.titleSmall)
-
     Text(pluralStringResource(R.plurals.settings_planner_weeks, weeksAhead, weeksAhead))
     val weeksRange = PlannerSettingsRepository.WEEKS_AHEAD_RANGE
     Slider(
