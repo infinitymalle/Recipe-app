@@ -121,7 +121,7 @@
         <item quantity="one">Added %1$d ingredients from %2$d meal to the shopping list</item>
         <item quantity="other">Added %1$d ingredients from %2$d meals to the shopping list</item>
     </plurals>
-    <string name="meal_plan_event_grocery">🛒 Grocery shopping</string>
+    <string name="meal_plan_event_grocery">Grocery shopping</string>
     <string name="recipe_detail_method">Method</string>
     <string name="recipe_detail_servings_less">−</string>
     <string name="recipe_detail_servings_more">+</string>

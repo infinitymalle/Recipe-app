@@ -96,7 +96,7 @@ class MealPlanCalendarSyncTest {
         sync.sync()
 
         val event = calendar.eventsIn(personal.id).single()
-        assertEquals("🛒 Grocery shopping", event.title)
+        assertEquals("Grocery shopping", event.title)
         assertEquals(today.atTime(16, 30).atZone(ZoneId.systemDefault()), event.start)
     }
 
